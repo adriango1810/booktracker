@@ -93,7 +93,10 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
       // Esperar a que videoRef esté disponible
       let attempts = 0;
       while (!videoRef.current && attempts < 50) {
-        console.log(`Waiting for videoRef... attempt ${attempts + 1}`);
+        // Solo loguear cada 10 intentos para no saturar
+        if (attempts % 10 === 0) {
+          console.log(`Waiting for videoRef... attempt ${attempts + 1}`);
+        }
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
       }

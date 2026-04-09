@@ -68,8 +68,8 @@ export const setupMobileConsole = () => {
     
     debugContent.appendChild(logEntry);
     
-    // Mantener solo los últimos 20 logs
-    while (debugContent.children.length > 20) {
+    // Mantener solo los últimos 50 logs
+    while (debugContent.children.length > 50) {
       const firstChild = debugContent.firstChild;
       if (firstChild) {
         debugContent.removeChild(firstChild);
