@@ -91,8 +91,13 @@ export const useCamera = () => {
       
       streamRef.current = stream;
       
-      // Pequeño delay para asegurar que el video esté montado
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Esperar a que videoRef esté disponible
+      let attempts = 0;
+      while (!videoRef.current && attempts < 50) {
+        console.log(`Waiting for videoRef... attempt ${attempts + 1}`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
       
       console.log('About to assign stream, videoRef.current:', !!videoRef.current);
       
