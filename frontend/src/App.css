@@ -1,0 +1,272 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #000;
+  color: #fff;
+  overflow: hidden;
+}
+
+.app {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+/* Camera View Styles */
+.camera-view {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background-color: #000;
+}
+
+.camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scan-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: none;
+}
+
+/* Scan Overlay */
+.scan-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.roi-frame {
+  position: absolute;
+  border: 2px solid #00ff00;
+  box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.7);
+}
+
+.corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #00ff00;
+}
+
+.corner-tl {
+  top: -3px;
+  left: -3px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.corner-tr {
+  top: -3px;
+  right: -3px;
+  border-left: none;
+  border-bottom: none;
+}
+
+.corner-bl {
+  bottom: -3px;
+  left: -3px;
+  border-right: none;
+  border-top: none;
+}
+
+.corner-br {
+  bottom: -3px;
+  right: -3px;
+  border-left: none;
+  border-top: none;
+}
+
+/* Status Info */
+.scan-info {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 8px 12px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #666;
+}
+
+.status-dot.scanning {
+  background-color: #00ff00;
+  animation: pulse 1.5s infinite;
+}
+
+.status-dot.idle {
+  background-color: #ffaa00;
+}
+
+.status-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.scan-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 8px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+}
+
+/* Loading and Error States */
+.camera-loading,
+.camera-error {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #000;
+}
+
+.loading-spinner,
+.error-message {
+  text-align: center;
+  max-width: 300px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #333;
+  border-top: 3px solid #00ff00;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+.error-message h3 {
+  color: #ff4444;
+  margin-bottom: 8px;
+}
+
+.error-message p {
+  color: #ccc;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.retry-button {
+  background-color: #00ff00;
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.retry-button:hover {
+  background-color: #00cc00;
+}
+
+/* Animations */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .scan-info {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+  }
+  
+  .status-indicator,
+  .scan-stats {
+    padding: 6px 10px;
+  }
+  
+  .status-text {
+    font-size: 12px;
+  }
+  
+  .scan-stats {
+    font-size: 10px;
+  }
+  
+  .corner {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+  }
+  
+  .corner-tl,
+  .corner-tr {
+    top: -2px;
+  }
+  
+  .corner-bl,
+  .corner-br {
+    bottom: -2px;
+  }
+  
+  .corner-tl,
+  .corner-bl {
+    left: -2px;
+  }
+  
+  .corner-tr,
+  .corner-br {
+    right: -2px;
+  }
+}
