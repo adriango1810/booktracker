@@ -96,12 +96,16 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
         // Solo loguear cada 10 intentos para no saturar
         if (attempts % 10 === 0) {
           console.log(`Waiting for videoRef... attempt ${attempts + 1}`);
+          // Verificar si hay elementos video en el DOM
+          const videoElements = document.querySelectorAll('video');
+          console.log(`Video elements in DOM: ${videoElements.length}`);
         }
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
       }
       
       console.log('About to assign stream, videoRef.current:', !!videoRef.current);
+      console.log('Video element in DOM:', !!videoRef.current);
       
       if (videoRef.current) {
         console.log('Setting stream to video element...');
