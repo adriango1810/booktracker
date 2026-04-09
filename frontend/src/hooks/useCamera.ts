@@ -91,8 +91,13 @@ export const useCamera = () => {
       
       streamRef.current = stream;
       
+      // Pequeño delay para asegurar que el video esté montado
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('About to assign stream, videoRef.current:', !!videoRef.current);
+      
       if (videoRef.current) {
-        console.log('📺 Setting stream to video element...');
+        console.log('Setting stream to video element...');
         videoRef.current.srcObject = stream;
         
         // Log inmediatamente después de asignar el stream
