@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { debugCamera, logVideoState } from '../utils/debug';
 
 interface CameraState {
   stream: MediaStream | null;
@@ -69,6 +70,7 @@ export const useCamera = () => {
   }, [getDeviceInfo]);
 
   const startCamera = useCallback(async () => {
+    debugCamera();
     setCameraState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
@@ -79,7 +81,40 @@ export const useCamera = () => {
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        
+        // Wait for video to be ready to play
+        await new Promise<void>((resolve, reject) => {
+          const video = videoRef.current!;
+          
+          const handleCanPlay = () => {
+            video.removeEventListener('canplay', handleCanPlay);
+            video.removeEventListener('error', handleError);
+            resolve();
+          };
+          
+          const handleError = () => {
+            video.removeEventListener('canplay', handleCanPlay);
+            video.removeEventListener('error', handleError);
+            reject(new Error('Video failed to load'));
+          };
+          
+          video.addEventListener('canplay', handleCanPlay);
+          video.addEventListener('error', handleError);
+          
+          // Fallback timeout
+          setTimeout(() => {
+            if (video.readyState >= 2) {
+              handleCanPlay();
+            } else {
+              reject(new Error('Video load timeout'));
+            }
+          }, 5000);
+        });
+        
         await videoRef.current.play();
+        
+        // Log video state after play
+        logVideoState(videoRef.current);
       }
       
       setCameraState({
@@ -89,15 +124,26 @@ export const useCamera = () => {
         isReady: true,
       });
     } catch (error) {
+      console.error('Camera error:', error);
       let errorMessage = 'Error al acceder a la cámara';
       
       if (error instanceof Error) {
+        console.error('Camera error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+        
         if (error.name === 'NotAllowedError') {
           errorMessage = 'Permiso de cámara denegado. Por favor, permite el acceso a la cámara.';
         } else if (error.name === 'NotFoundError') {
           errorMessage = 'No se encontró ninguna cámara en el dispositivo.';
         } else if (error.name === 'NotReadableError') {
           errorMessage = 'La cámara está siendo utilizada por otra aplicación.';
+        } else if (error.message.includes('Video load timeout')) {
+          errorMessage = 'La cámara tardó demasiado en cargarse. Intenta recargar la página.';
+        } else {
+          errorMessage = `Error: ${error.message}`;
         }
       }
       

@@ -56,13 +56,29 @@ export const useScanLoop = (
   }, [videoRef]);
 
   const captureFrame = useCallback((): ImageData | null => {
-    if (!videoRef.current || !canvasRef.current || !isReady) return null;
+    if (!videoRef.current || !canvasRef.current || !isReady) {
+      console.log('Capture frame blocked:', { 
+        hasVideo: !!videoRef.current, 
+        hasCanvas: !!canvasRef.current, 
+        isReady,
+        videoReadyState: videoRef.current?.readyState
+      });
+      return null;
+    }
     
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     
-    if (!ctx || video.readyState !== 4) return null;
+    if (!ctx || video.readyState !== 4) {
+      console.log('Capture frame failed:', { 
+        hasContext: !!ctx, 
+        readyState: video.readyState,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight
+      });
+      return null;
+    }
     
     const roi = getROI();
     
@@ -95,25 +111,42 @@ export const useScanLoop = (
       
       if (imageData && scanCallbackRef.current) {
         scanCallbackRef.current(imageData);
+        
+        setScanState(prev => ({
+          ...prev,
+          frameCount: prev.frameCount + 1,
+          lastFrameTime: timestamp,
+        }));
+      } else {
+        // Update lastFrameTime even if capture failed to prevent spam
+        setScanState(prev => ({
+          ...prev,
+          lastFrameTime: timestamp,
+        }));
       }
-      
-      setScanState(prev => ({
-        ...prev,
-        frameCount: prev.frameCount + 1,
-        lastFrameTime: timestamp,
-      }));
     }
     
-    animationRef.current = requestAnimationFrame(scanLoop);
+    if (scanState.isScanning) {
+      animationRef.current = requestAnimationFrame(scanLoop);
+    }
   }, [scanState.isScanning, scanState.fps, scanState.lastFrameTime, captureFrame]);
 
   const startScanning = useCallback((callback: (imageData: ImageData) => void) => {
     if (!isReady) return;
     
+    // Stop any existing scanning first
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+    
     scanCallbackRef.current = callback;
-    setScanState(prev => ({ ...prev, isScanning: true }));
-    animationRef.current = requestAnimationFrame(scanLoop);
-  }, [isReady, scanLoop]);
+    setScanState(prev => ({ 
+      ...prev, 
+      isScanning: true,
+      lastFrameTime: performance.now()
+    }));
+  }, [isReady]);
 
   const stopScanning = useCallback(() => {
     setScanState(prev => ({ ...prev, isScanning: false }));
@@ -131,13 +164,14 @@ export const useScanLoop = (
   }, []);
 
   useEffect(() => {
-    if (scanState.isScanning && isReady) {
+    if (scanState.isScanning && isReady && !animationRef.current) {
       animationRef.current = requestAnimationFrame(scanLoop);
     }
     
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
     };
   }, [scanState.isScanning, isReady, scanLoop]);
