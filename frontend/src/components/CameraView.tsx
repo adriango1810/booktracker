@@ -76,17 +76,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className={`camera-loading ${className}`}>
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Inicializando cámara...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={`camera-view ${className}`}>
       <video
@@ -102,6 +91,15 @@ export const CameraView: React.FC<CameraViewProps> = ({
         className="scan-canvas"
         style={{ display: 'none' }}
       />
+      
+      {isLoading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner">
+            <div className="spinner"></div>
+            <p>Inicializando cámara...</p>
+          </div>
+        </div>
+      )}
       
       {roi.width > 0 && roi.height > 0 && (
         <div className="scan-overlay">
