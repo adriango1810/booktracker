@@ -15,6 +15,65 @@ body {
   overflow: hidden;
 }
 
+/* Start Screen */
+.start-screen {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.start-content {
+  text-align: center;
+  padding: 2rem;
+  max-width: 400px;
+}
+
+.start-content h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.start-content p {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+
+.start-button {
+  background: #fff;
+  color: #667eea;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  min-width: 200px;
+}
+
+.start-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+.start-button:active {
+  transform: translateY(0);
+}
+
+.start-note {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  margin-top: 1.5rem;
+  font-style: italic;
+}
+
 .app {
   width: 100vw;
   height: 100vh;
