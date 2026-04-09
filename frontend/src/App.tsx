@@ -17,29 +17,6 @@ function App() {
   return (
     <div className="app">
       <CameraView onFrameCapture={handleFrameCapture} />
-      
-      {/* Console visible para debugging móvil */}
-      <div 
-        style={{
-          position: 'fixed',
-          top: '10px',
-          right: '10px',
-          background: 'rgba(0,0,0,0.8)',
-          color: 'white',
-          padding: '10px',
-          fontSize: '12px',
-          maxWidth: '300px',
-          maxHeight: '200px',
-          overflow: 'auto',
-          zIndex: 9999,
-          borderRadius: '5px',
-          fontFamily: 'monospace'
-        }}
-        id="debug-console"
-      >
-        <div style={{fontWeight: 'bold', marginBottom: '5px'}}>DEBUG LOGS:</div>
-        <div id="debug-content">Esperando logs...</div>
-      </div>
     </div>
   );
 }

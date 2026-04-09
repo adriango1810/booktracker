@@ -1,7 +1,40 @@
 // Console visible para debugging móvil
 export const setupMobileConsole = () => {
-  const debugContent = document.getElementById('debug-content');
-  if (!debugContent) return;
+  let debugContent = document.getElementById('debug-content');
+  
+  // Si no existe, crearlo
+  if (!debugContent) {
+    const debugConsole = document.createElement('div');
+    debugConsole.id = 'debug-console';
+    debugConsole.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.9);
+      color: white;
+      padding: 10px;
+      font-size: 12px;
+      max-width: 300px;
+      max-height: 200px;
+      overflow: auto;
+      z-index: 9999;
+      border-radius: 5px;
+      font-family: monospace;
+      border: 1px solid #444;
+    `;
+    
+    const title = document.createElement('div');
+    title.textContent = 'DEBUG LOGS:';
+    title.style.cssText = 'font-weight: bold; margin-bottom: 5px; color: #0f0;';
+    
+    debugContent = document.createElement('div');
+    debugContent.id = 'debug-content';
+    debugContent.textContent = 'Iniciando...';
+    
+    debugConsole.appendChild(title);
+    debugConsole.appendChild(debugContent);
+    document.body.appendChild(debugConsole);
+  }
 
   const originalConsole = {
     log: console.log,
@@ -37,7 +70,10 @@ export const setupMobileConsole = () => {
     
     // Mantener solo los últimos 20 logs
     while (debugContent.children.length > 20) {
-      debugContent.removeChild(debugContent.firstChild);
+      const firstChild = debugContent.firstChild;
+      if (firstChild) {
+        debugContent.removeChild(firstChild);
+      }
     }
     
     // Auto-scroll al final
