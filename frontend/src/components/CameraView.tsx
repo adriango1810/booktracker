@@ -39,11 +39,12 @@ export const CameraView: React.FC<CameraViewProps> = ({
   useEffect(() => {
     console.log('CameraView useEffect:', { isReady, hasCallback: !!onFrameCapture });
     
-    if (isReady && onFrameCapture) {
+    // Temporalmente desactivado para ver logs de inicialización
+    if (false && isReady && onFrameCapture) { // Cambiado a false para pausar escaneo
       console.log('Starting scanning...');
-      startScanning(onFrameCapture);
+      startScanning(onFrameCapture!);
     } else {
-      console.log('Stopping scanning...');
+      console.log('Scanning paused - checking initialization logs');
       stopScanning();
     }
     

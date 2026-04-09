@@ -92,19 +92,25 @@ export const useCamera = () => {
       streamRef.current = stream;
       
       if (videoRef.current) {
+        console.log('📺 Setting stream to video element...');
         videoRef.current.srcObject = stream;
+        
+        // Log inmediatamente después de asignar el stream
+        console.log('📺 Stream assigned, video srcObject:', !!videoRef.current.srcObject);
         
         // Wait for video to be ready to play
         await new Promise<void>((resolve, reject) => {
           const video = videoRef.current!;
           
           const handleCanPlay = () => {
+            console.log('🎬 Video canplay event fired');
             video.removeEventListener('canplay', handleCanPlay);
             video.removeEventListener('error', handleError);
             resolve();
           };
           
-          const handleError = () => {
+          const handleError = (e: Event) => {
+            console.error('🎬 Video error event:', e);
             video.removeEventListener('canplay', handleCanPlay);
             video.removeEventListener('error', handleError);
             reject(new Error('Video failed to load'));
@@ -115,6 +121,7 @@ export const useCamera = () => {
           
           // Fallback timeout
           setTimeout(() => {
+            console.log('⏰ Video load timeout check, readyState:', video.readyState);
             if (video.readyState >= 2) {
               handleCanPlay();
             } else {
@@ -124,13 +131,14 @@ export const useCamera = () => {
         });
         
         try {
+          console.log('🎮 Calling video.play()...');
           await videoRef.current.play();
-          console.log('Video play() successful');
+          console.log('✅ Video play() successful');
           
           // Log video state after play
           logVideoState(videoRef.current);
         } catch (playError) {
-          console.error('Video play() failed:', playError);
+          console.error('❌ Video play() failed:', playError);
           throw new Error(`Video playback failed: ${playError instanceof Error ? playError.message : 'Unknown error'}`);
         }
       }
