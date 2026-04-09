@@ -101,7 +101,10 @@ export const useScanLoop = (
   }, [videoRef, isReady, getROI]);
 
   const scanLoop = useCallback((timestamp: number) => {
-    if (!scanState.isScanning) return;
+    if (!scanState.isScanning) {
+      console.log('Scan loop: not scanning, exiting');
+      return;
+    }
     
     const frameInterval = 1000 / scanState.fps;
     const timeSinceLastFrame = timestamp - scanState.lastFrameTime;
@@ -132,6 +135,7 @@ export const useScanLoop = (
   }, [scanState.isScanning, scanState.fps, scanState.lastFrameTime, captureFrame]);
 
   const startScanning = useCallback((callback: (imageData: ImageData) => void) => {
+    console.log('startScanning called:', { isReady });
     if (!isReady) return;
     
     // Stop any existing scanning first
@@ -146,6 +150,8 @@ export const useScanLoop = (
       isScanning: true,
       lastFrameTime: performance.now()
     }));
+    
+    console.log('Scanning started, isScanning set to true');
   }, [isReady]);
 
   const stopScanning = useCallback(() => {
@@ -164,7 +170,14 @@ export const useScanLoop = (
   }, []);
 
   useEffect(() => {
+    console.log('ScanLoop useEffect:', { 
+      isScanning: scanState.isScanning, 
+      isReady, 
+      hasAnimationRef: !!animationRef.current 
+    });
+    
     if (scanState.isScanning && isReady && !animationRef.current) {
+      console.log('Starting animation frame loop');
       animationRef.current = requestAnimationFrame(scanLoop);
     }
     

@@ -75,7 +75,19 @@ export const useCamera = () => {
     
     try {
       const constraints = getOptimalConstraints();
+      console.log('Requesting camera with constraints:', constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      console.log('Camera stream obtained:', {
+        active: stream.active,
+        tracks: stream.getTracks().length,
+        trackStates: stream.getTracks().map(track => ({
+          kind: track.kind,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState
+        }))
+      });
       
       streamRef.current = stream;
       
@@ -111,10 +123,16 @@ export const useCamera = () => {
           }, 5000);
         });
         
-        await videoRef.current.play();
-        
-        // Log video state after play
-        logVideoState(videoRef.current);
+        try {
+          await videoRef.current.play();
+          console.log('Video play() successful');
+          
+          // Log video state after play
+          logVideoState(videoRef.current);
+        } catch (playError) {
+          console.error('Video play() failed:', playError);
+          throw new Error(`Video playback failed: ${playError instanceof Error ? playError.message : 'Unknown error'}`);
+        }
       }
       
       setCameraState({
