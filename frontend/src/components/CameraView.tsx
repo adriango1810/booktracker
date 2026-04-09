@@ -33,8 +33,16 @@ export const CameraView: React.FC<CameraViewProps> = ({
   } = useScanLoop(videoRef, deviceInfo, isReady);
 
   useEffect(() => {
-    startCamera();
-    return () => stopCamera();
+    // Esperar a que el componente se monte completamente
+    const timer = setTimeout(() => {
+      console.log('Component mounted, starting camera...');
+      startCamera();
+    }, 100);
+    
+    return () => {
+      clearTimeout(timer);
+      stopCamera();
+    };
   }, [startCamera, stopCamera]);
 
   useEffect(() => {
