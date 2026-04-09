@@ -14,7 +14,7 @@ interface DeviceInfo {
   isMobile: boolean;
 }
 
-export const useCamera = () => {
+export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) => {
   const [cameraState, setCameraState] = useState<CameraState>({
     stream: null,
     isLoading: false,
@@ -22,7 +22,6 @@ export const useCamera = () => {
     isReady: false,
   });
 
-  const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const getDeviceInfo = useCallback((): DeviceInfo => {
@@ -218,7 +217,6 @@ export const useCamera = () => {
 
   return {
     ...cameraState,
-    videoRef,
     deviceInfo: getDeviceInfo(),
     startCamera,
     stopCamera,

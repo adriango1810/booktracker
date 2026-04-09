@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useCamera } from '../hooks/useCamera';
 import { useScanLoop } from '../hooks/useScanLoop';
 
@@ -11,15 +11,16 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onFrameCapture, 
   className = '' 
 }) => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  
   const {
     isLoading,
     error,
     isReady,
-    videoRef,
     deviceInfo,
     startCamera,
     stopCamera,
-  } = useCamera();
+  } = useCamera(videoRef);
 
   const {
     isScanning,
