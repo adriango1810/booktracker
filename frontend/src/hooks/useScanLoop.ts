@@ -43,16 +43,25 @@ export const useScanLoop = (
     const videoWidth = video.videoWidth;
     const videoHeight = video.videoHeight;
     
+    // Para video vertical (como en Android), usar el ancho como base
     const roiSize = Math.min(videoWidth, videoHeight) * 0.6;
     const x = (videoWidth - roiSize) / 2;
     const y = (videoHeight - roiSize) / 2;
     
-    return {
+    const roi = {
       x: Math.round(x),
       y: Math.round(y),
       width: Math.round(roiSize),
       height: Math.round(roiSize),
     };
+    
+    console.log('🎯 ROI calculated:', {
+      videoDimensions: `${videoWidth}x${videoHeight}`,
+      roi,
+      isVertical: videoHeight > videoWidth
+    });
+    
+    return roi;
   }, [videoRef]);
 
   const captureFrame = useCallback((): ImageData | null => {
@@ -110,6 +119,14 @@ export const useScanLoop = (
       const imageData = captureFrame();
       
       if (imageData && scanCallbackRef.current) {
+        // Log cada 50 frames para no saturar
+        if (scanState.frameCount % 50 === 0) {
+          console.log('📸 Frame captured and processed:', {
+            frameCount: scanState.frameCount,
+            imageDataSize: `${imageData.width}x${imageData.height}`
+          });
+        }
+        
         scanCallbackRef.current(imageData);
         
         setScanState(prev => ({
