@@ -55,12 +55,6 @@ export const useScanLoop = (
       height: Math.round(roiSize),
     };
     
-    console.log('🎯 ROI calculated:', {
-      videoDimensions: `${videoWidth}x${videoHeight}`,
-      roi,
-      isVertical: videoHeight > videoWidth
-    });
-    
     return roi;
   }, [videoRef]);
 

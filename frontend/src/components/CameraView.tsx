@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useCamera } from '../hooks/useCamera';
 import { useScanLoop } from '../hooks/useScanLoop';
 import { useISBNReader } from '../hooks/useISBNReader';
@@ -78,7 +78,15 @@ export const CameraView: React.FC<CameraViewProps> = ({
     return () => stopScanning();
   }, [isReady, onFrameCapture, startScanning, stopScanning, handleFrameCapture]);
 
-  const roi = getROI();
+  const [roi, setRoi] = useState({ x: 0, y: 0, width: 0, height: 0 });
+
+  // Calcular ROI solo cuando el video esté listo
+  useEffect(() => {
+    if (isReady) {
+      const newRoi = getROI();
+      setRoi(newRoi);
+    }
+  }, [isReady, getROI]);
 
   if (error) {
     return (
