@@ -5,6 +5,8 @@ import { setupMobileConsole } from './utils/mobileConsole';
 
 function App() {
   const [cameraStarted, setCameraStarted] = useState(false);
+  const [detectedISBN, setDetectedISBN] = useState<string>('');
+  const [showISBNResult, setShowISBNResult] = useState(false);
 
   // Activar console visible para móvil
   useEffect(() => {
@@ -14,6 +16,17 @@ function App() {
 
   const handleFrameCapture = (imageData: ImageData) => {
     console.log('Frame captured for analysis:', imageData.width, 'x', imageData.height);
+  };
+
+  const handleISBNDetected = (isbn: string) => {
+    console.log('ISBN detected in App:', isbn);
+    setDetectedISBN(isbn);
+    setShowISBNResult(true);
+    
+    // Ocultar resultado después de 3 segundos
+    setTimeout(() => {
+      setShowISBNResult(false);
+    }, 3000);
   };
 
   const startCamera = () => {
@@ -44,7 +57,19 @@ function App() {
 
   return (
     <div className="app">
-      <CameraView onFrameCapture={handleFrameCapture} />
+      <CameraView 
+        onFrameCapture={handleFrameCapture} 
+        onISBNDetected={handleISBNDetected}
+      />
+      
+      {showISBNResult && (
+        <div className="isbn-notification">
+          <div className="notification-content">
+            <h3>ISBN Detectado</h3>
+            <p>{detectedISBN}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

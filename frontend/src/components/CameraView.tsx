@@ -1,17 +1,27 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useCamera } from '../hooks/useCamera';
 import { useScanLoop } from '../hooks/useScanLoop';
+import { useISBNReader } from '../hooks/useISBNReader';
 
 interface CameraViewProps {
   onFrameCapture?: (imageData: ImageData) => void;
+  onISBNDetected?: (isbn: string) => void;
   className?: string;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({ 
   onFrameCapture, 
+  onISBNDetected,
   className = '' 
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  
+  const {
+    isReading,
+    lastISBN,
+    detectionHistory,
+    processFrame: processISBNFrame,
+  } = useISBNReader({ onISBNDetected });
   
   const {
     isLoading,
@@ -45,20 +55,31 @@ export const CameraView: React.FC<CameraViewProps> = ({
     };
   }, [startCamera, stopCamera]);
 
+  // Callback combinado para frame capture y detección ISBN
+  const handleFrameCapture = useCallback(async (imageData: ImageData) => {
+    // Procesar frame para detección de ISBN
+    await processISBNFrame(imageData);
+    
+    // Llamar al callback original si existe
+    if (onFrameCapture) {
+      onFrameCapture(imageData);
+    }
+  }, [processISBNFrame, onFrameCapture]);
+
   useEffect(() => {
     console.log('CameraView useEffect:', { isReady, hasCallback: !!onFrameCapture });
     
     // Activar escaneo ahora que la cámara funciona
     if (isReady && onFrameCapture) {
       console.log('Starting scanning...');
-      startScanning(onFrameCapture!);
+      startScanning(handleFrameCapture!);
     } else {
       console.log('Scanning paused - checking initialization logs');
       stopScanning();
     }
     
     return () => stopScanning();
-  }, [isReady, onFrameCapture, startScanning, stopScanning]);
+  }, [isReady, onFrameCapture, startScanning, stopScanning, handleFrameCapture]);
 
   const roi = getROI();
 
@@ -122,9 +143,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
       
       <div className="scan-info">
         <div className="status-indicator">
-          <div className={`status-dot ${isScanning ? 'scanning' : 'idle'}`}></div>
+          <div className={`status-dot ${isScanning ? 'scanning' : 'idle'} ${isReading ? 'reading' : ''}`}></div>
           <span className="status-text">
-            {isScanning ? 'Escaneando...' : 'Cámara lista'}
+            {isReading ? 'Detectando ISBN...' : isScanning ? 'Escaneando...' : 'Cámara lista'}
           </span>
         </div>
         
@@ -132,7 +153,19 @@ export const CameraView: React.FC<CameraViewProps> = ({
           <span>FPS: {fps}</span>
           <span>Frames: {frameCount}</span>
           <span>Dispositivo: {deviceInfo.isIOS ? 'iOS' : deviceInfo.isAndroid ? 'Android' : 'Desktop'}</span>
+          {lastISBN && <span className="isbn-detected">ISBN: {lastISBN}</span>}
         </div>
+        
+        {lastISBN && (
+          <div className="isbn-result">
+            <div className="isbn-info">
+              <strong>ISBN Detectado:</strong> {lastISBN}
+            </div>
+            <div className="detection-count">
+              Detecciones: {detectionHistory.length}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
