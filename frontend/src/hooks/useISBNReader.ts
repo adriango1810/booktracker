@@ -140,7 +140,10 @@ export const useISBNReader = ({
       ctx.putImageData(imageData, 0, 0);
     }
     
-    console.log(`🔍 Image preprocessed: ${imageData.width}x${imageData.height} → ${targetWidth}x${targetHeight} (scale: ${scaleFactor.toFixed(2)})`);
+    // Log de preprocesamiento solo si escala es significativa (>1.5x)
+    if (scaleFactor > 1.5) {
+      console.log(`?? Image scaled: ${scaleFactor.toFixed(2)}x`);
+    }
     
     return canvas;
   }, []);
@@ -169,13 +172,12 @@ export const useISBNReader = ({
       
       if (result && result.getText()) {
         const rawISBN = result.getText();
-        console.log('ISBN DETECTADO:', rawISBN);
         
         // Validar que sea un ISBN válido
         const validISBN = validateISBN(rawISBN);
         
         if (validISBN && validISBN !== lastISBN) {
-          console.log('ISBN VÁLIDO:', validISBN);
+          console.log('?? ISBN detected:', validISBN);
           
           // Actualizar estado
           setLastISBN(validISBN);
@@ -195,12 +197,11 @@ export const useISBNReader = ({
             onISBNDetected(validISBN);
           }
         } else if (!validISBN) {
-          console.log('Código detectado pero no es ISBN válido:', rawISBN);
+          // Código detectado pero no es ISBN válido - silencioso para reducir ruido
         }
       }
     } catch (error) {
-      // ZXing lanza errores cuando no encuentra códigos de barras, es normal
-      // No mostrar estos errores para reducir ruido
+      // ZXing lanza errores cuando no encuentra códigos de barras - silencioso
     } finally {
       setIsReading(false);
     }

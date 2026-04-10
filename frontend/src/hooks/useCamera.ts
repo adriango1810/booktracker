@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { debugCamera, logVideoState } from '../utils/debug';
+import { debugCamera } from '../utils/debug';
 
 interface CameraState {
   stream: MediaStream | null;
@@ -71,42 +71,18 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
     
     try {
       const constraints = await getOptimalConstraints();
-      console.log('Requesting camera with constraints:', constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      
-      console.log('Camera stream obtained:', {
-        active: stream.active,
-        tracks: stream.getTracks().length,
-        trackStates: stream.getTracks().map(track => ({
-          kind: track.kind,
-          enabled: track.enabled,
-          muted: track.muted,
-          readyState: track.readyState
-        }))
-      });
       
       streamRef.current = stream;
       
       // Esperar a que videoRef esté disponible
       let attempts = 0;
       while (!videoRef.current && attempts < 50) {
-        // Solo loguear cada 10 intentos para no saturar
-        if (attempts % 10 === 0) {
-          console.log(`Waiting for videoRef... attempt ${attempts + 1}`);
-          // Verificar si hay elementos video en el DOM
-          const videoElements = document.querySelectorAll('video');
-          console.log(`Video elements in DOM: ${videoElements.length}`);
-        }
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
       }
       
-      console.log('About to assign stream, videoRef.current:', !!videoRef.current);
-      console.log('Video element in DOM:', !!videoRef.current);
-      
       if (videoRef.current) {
-        console.log('Setting stream to video element...');
-        
         // Configurar atributos del video ANTES de asignar stream
         videoRef.current.setAttribute('playsinline', 'true');
         videoRef.current.setAttribute('muted', 'true');
@@ -115,21 +91,18 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
         
         // Asignar stream al video
         videoRef.current.srcObject = stream;
-        console.log('📺 Stream assigned, video srcObject:', !!videoRef.current.srcObject);
         
         // Wait for video to be ready to play
         await new Promise<void>((resolve, reject) => {
           const video = videoRef.current!;
           
           const handleCanPlay = () => {
-            console.log('🎬 Video canplay event fired');
             video.removeEventListener('canplay', handleCanPlay);
             video.removeEventListener('error', handleError);
             resolve();
           };
           
-          const handleError = (e: Event) => {
-            console.error('🎬 Video error event:', e);
+          const handleError = () => {
             video.removeEventListener('canplay', handleCanPlay);
             video.removeEventListener('error', handleError);
             reject(new Error('Video failed to load'));
@@ -140,7 +113,6 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
           
           // Fallback timeout
           setTimeout(() => {
-            console.log('⏰ Video load timeout check, readyState:', video.readyState);
             if (video.readyState >= 2) {
               handleCanPlay();
             } else {
@@ -150,35 +122,8 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
         });
         
         try {
-          console.log('🎮 Calling video.play()...');
           await videoRef.current.play();
-          console.log('✅ Video play() successful');
-          
-          // Verificar dimensiones del elemento video y resolución real del stream
-          setTimeout(() => {
-            if (videoRef.current) {
-              console.log('📏 Video element dimensions:', {
-                offsetWidth: videoRef.current.offsetWidth,
-                offsetHeight: videoRef.current.offsetHeight,
-                clientWidth: videoRef.current.clientWidth,
-                clientHeight: videoRef.current.clientHeight,
-                videoWidth: videoRef.current.videoWidth,
-                videoHeight: videoRef.current.videoHeight
-              });
-              
-              // Log específico de resolución real para verificar calidad
-              console.log('🎥 Stream resolution check:', {
-                actualResolution: `${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`,
-                isHighQuality: videoRef.current.videoWidth >= 1920 && videoRef.current.videoHeight >= 1080,
-                isMinimumQuality: videoRef.current.videoWidth >= 640 && videoRef.current.videoHeight >= 480
-              });
-            }
-          }, 1000);
-          
-          // Log video state after play
-          logVideoState(videoRef.current);
         } catch (playError) {
-          console.error('❌ Video play() failed:', playError);
           throw new Error(`Video playback failed: ${playError instanceof Error ? playError.message : 'Unknown error'}`);
         }
       }

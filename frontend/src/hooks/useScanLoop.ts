@@ -123,11 +123,11 @@ export const useScanLoop = (
       const imageData = captureFrame();
       
       if (imageData && scanCallbackRef.current) {
-        // Log cada 50 frames para no saturar
-        if (scanState.frameCount % 50 === 0) {
-          console.log('📸 Frame captured and processed:', {
+        // Log cada 100 frames para no saturar (reducido de 50)
+        if (scanState.frameCount % 100 === 0) {
+          console.log('?? Frame processed:', {
             frameCount: scanState.frameCount,
-            imageDataSize: `${imageData.width}x${imageData.height}`
+            size: `${imageData.width}x${imageData.height}`
           });
         }
         

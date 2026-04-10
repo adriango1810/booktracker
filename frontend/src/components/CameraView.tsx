@@ -79,7 +79,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
     const relativeX = x / rect.width;
     const relativeY = y / rect.height;
     
-    console.log('Tapping to focus at:', { relativeX, relativeY });
+    // Log de tap solo en modo debug (reducido)
     
     // Mostrar indicador visual de toque (siempre funciona)
     const indicator = document.createElement('div');
@@ -115,15 +115,10 @@ export const CameraView: React.FC<CameraViewProps> = ({
       if (capabilities) {
         // Usar casting para acceder a propiedades experimentales
         const caps = capabilities as any;
-        console.log('Track capabilities available:', {
-          width: capabilities.width,
-          height: capabilities.height,
-          // Propiedades experimentales (pueden no existir en todos los navegadores)
-          focusMode: caps.focusMode,
-          exposureMode: caps.exposureMode,
-          whiteBalanceMode: caps.whiteBalanceMode,
-          pointsOfInterest: caps.pointsOfInterest
-        });
+        // Log de capacidades solo si hay soporte avanzado (reducido)
+        if (caps.focusMode || caps.exposureMode) {
+          console.log('?? Advanced camera features available');
+        }
         
         // Intentar pointsOfInterest solo si está soportado (experimental)
         if (caps.pointsOfInterest) {
