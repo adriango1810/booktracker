@@ -66,6 +66,63 @@ export const CameraView: React.FC<CameraViewProps> = ({
     }
   }, [processISBNFrame, onFrameCapture]);
 
+  // Función para enfocar al tocar la pantalla
+  const handleVideoTap = useCallback((event: React.MouseEvent<HTMLVideoElement>) => {
+    if (!videoRef.current) return;
+    
+    const video = videoRef.current;
+    const rect = video.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    // Calcular coordenadas relativas al video (0-1)
+    const relativeX = x / rect.width;
+    const relativeY = y / rect.height;
+    
+    console.log('Tapping to focus at:', { relativeX, relativeY });
+    
+    // Intentar enfocar en el punto tocado (simplificado)
+    const stream = video.srcObject as MediaStream;
+    const track = stream?.getVideoTracks()[0];
+    
+    if (track) {
+      // Mostrar indicador visual de toque
+      const indicator = document.createElement('div');
+      indicator.style.cssText = `
+        position: fixed;
+        left: ${event.clientX - 20}px;
+        top: ${event.clientY - 20}px;
+        width: 40px;
+        height: 40px;
+        border: 3px solid #00ff00;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+        animation: focusPulse 0.6s ease-out;
+      `;
+      document.body.appendChild(indicator);
+      
+      // Remover indicador después de la animación
+      setTimeout(() => {
+        document.body.removeChild(indicator);
+      }, 600);
+      
+      // Intentar aplicar restricciones de enfoque (si el dispositivo lo soporta)
+      try {
+        // Esto es experimental y puede no funcionar en todos los dispositivos
+        (track as any).applyConstraints({
+          advanced: [{
+            pointsOfInterest: [{ x: relativeX, y: relativeY }]
+          }]
+        }).catch(() => {
+          console.log('Tap-to-focus not supported on this device');
+        });
+      } catch (error) {
+        console.log('Tap-to-focus API not available');
+      }
+    }
+  }, []);
+
   useEffect(() => {
     // Activar escaneo ahora que la cámara funciona
     if (isReady && onFrameCapture) {
@@ -110,6 +167,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
         playsInline
         muted
         autoPlay
+        onClick={handleVideoTap}
       />
       
       <canvas

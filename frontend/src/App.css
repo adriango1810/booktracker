@@ -313,6 +313,21 @@ body {
   }
 }
 
+@keyframes focusPulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
 /* Loading and Error States */
 .camera-loading,
 .camera-error {
