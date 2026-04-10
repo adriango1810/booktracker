@@ -14,12 +14,12 @@ function App() {
     console.log('Mobile console activated');
   }, []);
 
-  const handleFrameCapture = (imageData: ImageData) => {
-    console.log('Frame captured for analysis:', imageData.width, 'x', imageData.height);
+  const handleFrameCapture = (_imageData: ImageData) => {
+    // Frame procesado para detección ISBN
   };
 
   const handleISBNDetected = (isbn: string) => {
-    console.log('ISBN detected in App:', isbn);
+    console.log('ISBN DETECTADO EN APP:', isbn);
     setDetectedISBN(isbn);
     setShowISBNResult(true);
     

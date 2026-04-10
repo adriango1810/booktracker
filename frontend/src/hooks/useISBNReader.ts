@@ -83,8 +83,6 @@ export const useISBNReader = ({
     setIsReading(true);
 
     try {
-      console.log('Processing frame for ISBN detection...');
-      
       // Convertir ImageData a formato compatible con ZXing
       const canvas = document.createElement('canvas');
       canvas.width = imageData.width;
@@ -102,13 +100,13 @@ export const useISBNReader = ({
       
       if (result && result.getText()) {
         const rawISBN = result.getText();
-        console.log('Raw barcode detected:', rawISBN);
+        console.log('ISBN DETECTADO:', rawISBN);
         
         // Validar que sea un ISBN válido
         const validISBN = validateISBN(rawISBN);
         
         if (validISBN && validISBN !== lastISBN) {
-          console.log('Valid ISBN detected:', validISBN);
+          console.log('ISBN VÁLIDO:', validISBN);
           
           // Actualizar estado
           setLastISBN(validISBN);
@@ -128,14 +126,12 @@ export const useISBNReader = ({
             onISBNDetected(validISBN);
           }
         } else if (!validISBN) {
-          console.log('Detected barcode but not valid ISBN:', rawISBN);
+          console.log('Código detectado pero no es ISBN válido:', rawISBN);
         }
       }
     } catch (error) {
       // ZXing lanza errores cuando no encuentra códigos de barras, es normal
-      if (!(error instanceof Error) || !error.message.includes('No barcode or QR code')) {
-        console.warn('Error in ISBN detection:', error);
-      }
+      // No mostrar estos errores para reducir ruido
     } finally {
       setIsReading(false);
     }

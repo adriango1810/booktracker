@@ -67,14 +67,11 @@ export const CameraView: React.FC<CameraViewProps> = ({
   }, [processISBNFrame, onFrameCapture]);
 
   useEffect(() => {
-    console.log('CameraView useEffect:', { isReady, hasCallback: !!onFrameCapture });
-    
     // Activar escaneo ahora que la cámara funciona
     if (isReady && onFrameCapture) {
-      console.log('Starting scanning...');
+      console.log('Cámara lista - iniciando escaneo ISBN...');
       startScanning(handleFrameCapture!);
     } else {
-      console.log('Scanning paused - checking initialization logs');
       stopScanning();
     }
     
