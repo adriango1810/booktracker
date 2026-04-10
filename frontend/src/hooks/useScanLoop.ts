@@ -25,9 +25,19 @@ export const useScanLoop = (
   deviceInfo: DeviceInfo,
   isReady: boolean
 ) => {
+  // Configuración parametrizable con variables de entorno
+  const ROI_RATIO = parseFloat(import.meta.env.VITE_SCAN_ROI_RATIO || '0.65'); // Ligeramente aumentado de 0.6 a 0.65
+  const FPS_IOS = parseInt(import.meta.env.VITE_SCAN_FPS_IOS || '2');
+  const FPS_ANDROID = parseInt(import.meta.env.VITE_SCAN_FPS_ANDROID || '4');
+  const FPS_DESKTOP = 3;
+  
+  // Comentario sobre ROI: Un ROI demasiado pequeño puede recortar parcialmente el código de barras,
+  // mientras que uno demasiado grande reduce la densidad de píxeles por barra, dificultando la detección.
+  // El valor 0.65 busca un balance entre capturar suficiente contexto y mantener buena densidad de píxeles.
+  
   const [scanState, setScanState] = useState<ScanLoopState>({
     isScanning: false,
-    fps: deviceInfo.isIOS ? 2 : deviceInfo.isAndroid ? 4 : 3,
+    fps: deviceInfo.isIOS ? FPS_IOS : deviceInfo.isAndroid ? FPS_ANDROID : FPS_DESKTOP,
     frameCount: 0,
     lastFrameTime: 0,
   });
@@ -44,7 +54,7 @@ export const useScanLoop = (
     const videoHeight = video.videoHeight;
     
     // Para video vertical (como en Android), usar el ancho como base
-    const roiSize = Math.min(videoWidth, videoHeight) * 0.6;
+    const roiSize = Math.min(videoWidth, videoHeight) * ROI_RATIO;
     const x = (videoWidth - roiSize) / 2;
     const y = (videoHeight - roiSize) / 2;
     
@@ -56,7 +66,7 @@ export const useScanLoop = (
     };
     
     return roi;
-  }, [videoRef]);
+  }, [videoRef, ROI_RATIO]);
 
   const captureFrame = useCallback((): ImageData | null => {
     if (!videoRef.current || !canvasRef.current || !isReady) {

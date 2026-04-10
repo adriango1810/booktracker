@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
+import { DecodeHintType, BarcodeFormat } from '@zxing/library';
 
 interface ISBNDetection {
   isbn: string;
@@ -27,8 +28,21 @@ export const useISBNReader = ({
   // Inicializar lector ZXing
   const initializeReader = useCallback(() => {
     if (!readerRef.current) {
-      readerRef.current = new BrowserMultiFormatReader();
-      console.log('ZXing reader initialized');
+      // Configurar hints para optimizar detección de ISBN (EAN-13)
+      const hints = new Map();
+      
+      // Priorizar formatos EAN-13 (ISBN-13) y UPC-A/E (ISBN-10)
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.EAN_13,  // ISBN-13
+        BarcodeFormat.UPC_A,   // ISBN-10 (a veces aparece como UPC-A)
+        BarcodeFormat.UPC_E,   // ISBN-10 versión corta
+      ]);
+      
+      // Activar TRY_HARDER para mejor detección en condiciones difíciles
+      hints.set(DecodeHintType.TRY_HARDER, true);
+      
+      readerRef.current = new BrowserMultiFormatReader(hints);
+      console.log('ZXing reader initialized with EAN-13 hints and TRY_HARDER');
     }
   }, []);
 
@@ -67,6 +81,70 @@ export const useISBNReader = ({
     return null;
   }, []);
 
+  // Preprocesar imagen para mejorar detección de ISBN
+  const preprocessImageForZXing = useCallback((imageData: ImageData): HTMLCanvasElement => {
+    // Configuración de escalado (mínimo 1024px en el lado largo)
+    const MIN_LONG_EDGE = parseInt(import.meta.env.VITE_SCAN_DECODE_MIN_LONG_EDGE || '1024');
+    
+    const currentLongEdge = Math.max(imageData.width, imageData.height);
+    const scaleFactor = Math.max(1, MIN_LONG_EDGE / currentLongEdge);
+    
+    const targetWidth = Math.round(imageData.width * scaleFactor);
+    const targetHeight = Math.round(imageData.height * scaleFactor);
+    
+    // Canvas para el preprocesamiento
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) {
+      throw new Error('Could not get canvas context for preprocessing');
+    }
+    
+    // Desactivar suavizado para mantener nitidez de las barras
+    ctx.imageSmoothingEnabled = false;
+    
+    // Dibujar imagen escalada
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = imageData.width;
+    tempCanvas.height = imageData.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    if (!tempCtx) {
+      throw new Error('Could not get temp canvas context');
+    }
+    
+    tempCtx.putImageData(imageData, 0, 0);
+    ctx.drawImage(tempCanvas, 0, 0, targetWidth, targetHeight);
+    
+    // Opcional: Mejorar contraste (desactivable con constante)
+    const ENABLE_CONTRAST_BOOST = false; // Cambiar a true para activar
+    if (ENABLE_CONTRAST_BOOST) {
+      const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+      const data = imageData.data;
+      
+      // Convertir a escala de grises y aumentar contraste
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+        const contrast = 1.5; // Factor de contraste
+        const adjusted = ((gray - 128) * contrast) + 128;
+        const clamped = Math.max(0, Math.min(255, adjusted));
+        
+        data[i] = clamped;     // R
+        data[i + 1] = clamped; // G
+        data[i + 2] = clamped; // B
+        // Alpha (i + 3) se mantiene igual
+      }
+      
+      ctx.putImageData(imageData, 0, 0);
+    }
+    
+    console.log(`🔍 Image preprocessed: ${imageData.width}x${imageData.height} → ${targetWidth}x${targetHeight} (scale: ${scaleFactor.toFixed(2)})`);
+    
+    return canvas;
+  }, []);
+
   // Procesar frame para detectar ISBN
   const processFrame = useCallback(async (imageData: ImageData): Promise<void> => {
     if (!readerRef.current || isReading) {
@@ -83,20 +161,11 @@ export const useISBNReader = ({
     setIsReading(true);
 
     try {
-      // Convertir ImageData a formato compatible con ZXing
-      const canvas = document.createElement('canvas');
-      canvas.width = imageData.width;
-      canvas.height = imageData.height;
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        throw new Error('Could not get canvas context');
-      }
-
-      ctx.putImageData(imageData, 0, 0);
+      // Preprocesar imagen para mejorar detección
+      const processedCanvas = preprocessImageForZXing(imageData);
       
       // Usar ZXing para detectar códigos de barras
-      const result = await readerRef.current.decodeFromCanvas(canvas);
+      const result = await readerRef.current.decodeFromCanvas(processedCanvas);
       
       if (result && result.getText()) {
         const rawISBN = result.getText();

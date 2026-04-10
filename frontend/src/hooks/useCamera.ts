@@ -33,32 +33,19 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
     };
   }, []);
 
-  const getOptimalConstraints = useCallback(() => {
-    const device = getDeviceInfo();
+  const getOptimalConstraints = useCallback(async () => {
+    // Constraints de alta calidad - objetivo 1920x1080
+    const highConstraints = {
+      video: {
+        facingMode: 'environment',
+        width: { ideal: 1920, min: 640 },
+        height: { ideal: 1080, min: 480 },
+      },
+      audio: false,
+    };
     
-    if (device.isIOS) {
-      return {
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      };
-    }
-    
-    if (device.isAndroid) {
-      return {
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      };
-    }
-    
-    return {
+    // Constraints de fallback - más relajadas
+    const fallbackConstraints = {
       video: {
         facingMode: 'environment',
         width: { ideal: 1280 },
@@ -66,14 +53,24 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
       },
       audio: false,
     };
-  }, [getDeviceInfo]);
+    
+    try {
+      // Intentar primero con alta calidad
+      const stream = await navigator.mediaDevices.getUserMedia(highConstraints);
+      stream.getTracks().forEach(track => track.stop()); // Liberar stream de prueba
+      return highConstraints;
+    } catch (error) {
+      console.log('High quality constraints not supported, using fallback:', error);
+      return fallbackConstraints;
+    }
+  }, []);
 
   const startCamera = useCallback(async () => {
     debugCamera();
     setCameraState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const constraints = getOptimalConstraints();
+      const constraints = await getOptimalConstraints();
       console.log('Requesting camera with constraints:', constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
@@ -157,7 +154,7 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
           await videoRef.current.play();
           console.log('✅ Video play() successful');
           
-          // Verificar dimensiones del elemento video
+          // Verificar dimensiones del elemento video y resolución real del stream
           setTimeout(() => {
             if (videoRef.current) {
               console.log('📏 Video element dimensions:', {
@@ -167,6 +164,13 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
                 clientHeight: videoRef.current.clientHeight,
                 videoWidth: videoRef.current.videoWidth,
                 videoHeight: videoRef.current.videoHeight
+              });
+              
+              // Log específico de resolución real para verificar calidad
+              console.log('🎥 Stream resolution check:', {
+                actualResolution: `${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`,
+                isHighQuality: videoRef.current.videoWidth >= 1920 && videoRef.current.videoHeight >= 1080,
+                isMinimumQuality: videoRef.current.videoWidth >= 640 && videoRef.current.videoHeight >= 480
               });
             }
           }, 1000);

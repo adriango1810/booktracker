@@ -66,7 +66,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
     }
   }, [processISBNFrame, onFrameCapture]);
 
-  // Función para enfocar al tocar la pantalla
+  // Función para enfocar al tocar la pantalla (best-effort, no garantizado en todos los navegadores)
   const handleVideoTap = useCallback((event: React.MouseEvent<HTMLVideoElement>) => {
     if (!videoRef.current) return;
     
@@ -81,43 +81,67 @@ export const CameraView: React.FC<CameraViewProps> = ({
     
     console.log('Tapping to focus at:', { relativeX, relativeY });
     
-    // Intentar enfocar en el punto tocado (simplificado)
+    // Mostrar indicador visual de toque (siempre funciona)
+    const indicator = document.createElement('div');
+    indicator.style.cssText = `
+      position: fixed;
+      left: ${event.clientX - 20}px;
+      top: ${event.clientY - 20}px;
+      width: 40px;
+      height: 40px;
+      border: 3px solid #00ff00;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      animation: focusPulse 0.6s ease-out;
+    `;
+    document.body.appendChild(indicator);
+    
+    // Remover indicador después de la animación
+    setTimeout(() => {
+      if (document.body.contains(indicator)) {
+        document.body.removeChild(indicator);
+      }
+    }, 600);
+    
+    // Intentar enfocar en el punto tocado (best-effort - no todos los navegadores lo soportan)
     const stream = video.srcObject as MediaStream;
     const track = stream?.getVideoTracks()[0];
     
     if (track) {
-      // Mostrar indicador visual de toque
-      const indicator = document.createElement('div');
-      indicator.style.cssText = `
-        position: fixed;
-        left: ${event.clientX - 20}px;
-        top: ${event.clientY - 20}px;
-        width: 40px;
-        height: 40px;
-        border: 3px solid #00ff00;
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 9999;
-        animation: focusPulse 0.6s ease-out;
-      `;
-      document.body.appendChild(indicator);
+      // Verificar capacidades del track antes de intentar aplicar restricciones
+      const capabilities = track.getCapabilities?.();
       
-      // Remover indicador después de la animación
-      setTimeout(() => {
-        document.body.removeChild(indicator);
-      }, 600);
-      
-      // Intentar aplicar restricciones de enfoque (si el dispositivo lo soporta)
-      try {
-        // Intentar con pointsOfInterest (experimental)
-        (track as any).applyConstraints({
-          advanced: [{
-            pointsOfInterest: [{ x: relativeX, y: relativeY }]
-          }]
-        }).catch(() => {
-          console.log('Points of interest not supported, trying brightness adjustment');
-          
-          // Si no funciona, intentar ajustar brillo y contraste
+      if (capabilities) {
+        // Usar casting para acceder a propiedades experimentales
+        const caps = capabilities as any;
+        console.log('Track capabilities available:', {
+          width: capabilities.width,
+          height: capabilities.height,
+          // Propiedades experimentales (pueden no existir en todos los navegadores)
+          focusMode: caps.focusMode,
+          exposureMode: caps.exposureMode,
+          whiteBalanceMode: caps.whiteBalanceMode,
+          pointsOfInterest: caps.pointsOfInterest
+        });
+        
+        // Intentar pointsOfInterest solo si está soportado (experimental)
+        if (caps.pointsOfInterest) {
+          try {
+            (track as any).applyConstraints({
+              advanced: [{
+                pointsOfInterest: [{ x: relativeX, y: relativeY }]
+              }]
+            }).catch((error: any) => {
+              console.log('Points of interest failed:', error);
+            });
+          } catch (error) {
+            console.log('Points of interest API not available:', error);
+          }
+        }
+        
+        // Intentar ajustar brillo/contraste solo si hay capacidades de exposición (experimental)
+        if (caps.exposureMode && Array.isArray(caps.exposureMode) && caps.exposureMode.length > 0) {
           try {
             (track as any).applyConstraints({
               advanced: [{
@@ -128,19 +152,22 @@ export const CameraView: React.FC<CameraViewProps> = ({
               // Volver a valores normales después de 500ms
               setTimeout(() => {
                 (track as any).applyConstraints({
-                  brightness: 0,
-                  contrast: 1
-                }).catch(() => console.log('Could not reset brightness'));
+                  advanced: [{
+                    brightness: 0,
+                    contrast: 1
+                  }]
+                }).catch(() => console.log('Could not reset brightness/contrast'));
               }, 500);
             }).catch(() => {
-              console.log('Brightness adjustment not supported');
+              console.log('Brightness/contrast adjustment not supported');
             });
           } catch (error) {
-            console.log('All focus methods failed, but tap indicator works');
+            console.log('Exposure adjustment API not available:', error);
           }
-        });
-      } catch (error) {
-        console.log('Tap-to-focus API not available');
+        }
+      } else {
+        // Fallback para navegadores sin getCapabilities
+        console.log('Track capabilities not available - tap indicator only');
       }
     }
   }, []);
