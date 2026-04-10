@@ -51,8 +51,12 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
       return {
         video: {
           facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: 1920, min: 1280 },
+          height: { ideal: 1080, min: 720 },
+          focusMode: 'continuous',
+          exposureMode: 'continuous',
+          whiteBalanceMode: 'continuous',
+          zoom: { ideal: 1.0 },
         },
         audio: false,
       };
@@ -61,8 +65,12 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
     return {
       video: {
         facingMode: 'environment',
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
+        width: { ideal: 1920, min: 1280 },
+        height: { ideal: 1080, min: 720 },
+        focusMode: 'continuous',
+        exposureMode: 'continuous',
+        whiteBalanceMode: 'continuous',
+        zoom: { ideal: 1.0 },
       },
       audio: false,
     };
@@ -75,7 +83,24 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
     try {
       const constraints = getOptimalConstraints();
       console.log('Requesting camera with constraints:', constraints);
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log('Advanced constraints successful');
+      } catch (advancedError) {
+        console.log('Advanced constraints failed, trying basic constraints...', advancedError);
+        const basicConstraints = {
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        };
+        stream = await navigator.mediaDevices.getUserMedia(basicConstraints);
+        console.log('Basic constraints successful');
+      }
       
       console.log('Camera stream obtained:', {
         active: stream.active,
