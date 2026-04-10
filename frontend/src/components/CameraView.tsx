@@ -109,13 +109,35 @@ export const CameraView: React.FC<CameraViewProps> = ({
       
       // Intentar aplicar restricciones de enfoque (si el dispositivo lo soporta)
       try {
-        // Esto es experimental y puede no funcionar en todos los dispositivos
+        // Intentar con pointsOfInterest (experimental)
         (track as any).applyConstraints({
           advanced: [{
             pointsOfInterest: [{ x: relativeX, y: relativeY }]
           }]
         }).catch(() => {
-          console.log('Tap-to-focus not supported on this device');
+          console.log('Points of interest not supported, trying brightness adjustment');
+          
+          // Si no funciona, intentar ajustar brillo y contraste
+          try {
+            (track as any).applyConstraints({
+              advanced: [{
+                brightness: 0.1,  // Pequeño ajuste para forzar recalculación
+                contrast: 1.1
+              }]
+            }).then(() => {
+              // Volver a valores normales después de 500ms
+              setTimeout(() => {
+                (track as any).applyConstraints({
+                  brightness: 0,
+                  contrast: 1
+                }).catch(() => console.log('Could not reset brightness'));
+              }, 500);
+            }).catch(() => {
+              console.log('Brightness adjustment not supported');
+            });
+          } catch (error) {
+            console.log('All focus methods failed, but tap indicator works');
+          }
         });
       } catch (error) {
         console.log('Tap-to-focus API not available');
