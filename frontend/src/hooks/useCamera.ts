@@ -109,9 +109,15 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
       
       if (videoRef.current) {
         console.log('Setting stream to video element...');
-        videoRef.current.srcObject = stream;
         
-        // Log inmediatamente después de asignar el stream
+        // Configurar atributos del video ANTES de asignar stream
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.setAttribute('muted', 'true');
+        videoRef.current.style.width = '100%';
+        videoRef.current.style.height = '100%';
+        
+        // Asignar stream al video
+        videoRef.current.srcObject = stream;
         console.log('📺 Stream assigned, video srcObject:', !!videoRef.current.srcObject);
         
         // Wait for video to be ready to play
@@ -150,6 +156,20 @@ export const useCamera = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
           console.log('🎮 Calling video.play()...');
           await videoRef.current.play();
           console.log('✅ Video play() successful');
+          
+          // Verificar dimensiones del elemento video
+          setTimeout(() => {
+            if (videoRef.current) {
+              console.log('📏 Video element dimensions:', {
+                offsetWidth: videoRef.current.offsetWidth,
+                offsetHeight: videoRef.current.offsetHeight,
+                clientWidth: videoRef.current.clientWidth,
+                clientHeight: videoRef.current.clientHeight,
+                videoWidth: videoRef.current.videoWidth,
+                videoHeight: videoRef.current.videoHeight
+              });
+            }
+          }, 1000);
           
           // Log video state after play
           logVideoState(videoRef.current);
