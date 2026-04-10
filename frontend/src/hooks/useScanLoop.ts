@@ -57,12 +57,6 @@ export const useScanLoop = (
 
   const captureFrame = useCallback((): ImageData | null => {
     if (!videoRef.current || !canvasRef.current || !isReady) {
-      console.log('❌ Capture frame blocked:', { 
-        hasVideo: !!videoRef.current, 
-        hasCanvas: !!canvasRef.current, 
-        isReady,
-        videoReadyState: videoRef.current?.readyState
-      });
       return null;
     }
     
@@ -70,28 +64,15 @@ export const useScanLoop = (
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     
-    console.log('🎥 Video state:', {
-      readyState: video.readyState,
-      videoWidth: video.videoWidth,
-      videoHeight: video.videoHeight,
-      paused: video.paused,
-      ended: video.ended,
-      currentTime: video.currentTime,
-      duration: video.duration
-    });
-    
     if (!ctx) {
-      console.log('❌ No 2D context');
       return null;
     }
     
     if (video.readyState !== 4) {
-      console.log('❌ Video not ready (readyState:', video.readyState, ')');
       return null;
     }
     
     if (video.videoWidth === 0 || video.videoHeight === 0) {
-      console.log('❌ Video has no dimensions');
       return null;
     }
     
@@ -99,8 +80,6 @@ export const useScanLoop = (
     
     canvas.width = roi.width;
     canvas.height = roi.height;
-    
-    console.log('📸 Drawing ROI:', roi);
     
     ctx.drawImage(
       video,
@@ -115,18 +94,12 @@ export const useScanLoop = (
     );
     
     const imageData = ctx.getImageData(0, 0, roi.width, roi.height);
-    console.log('✅ Frame captured successfully:', {
-      width: imageData.width,
-      height: imageData.height,
-      dataLength: imageData.data.length
-    });
     
     return imageData;
   }, [videoRef, isReady, getROI]);
 
   const scanLoop = useCallback((timestamp: number) => {
     if (!scanState.isScanning) {
-      console.log('Scan loop: not scanning, exiting');
       return;
     }
     
@@ -159,7 +132,6 @@ export const useScanLoop = (
   }, [scanState.isScanning, scanState.fps, scanState.lastFrameTime, captureFrame]);
 
   const startScanning = useCallback((callback: (imageData: ImageData) => void) => {
-    console.log('startScanning called:', { isReady });
     if (!isReady) return;
     
     // Stop any existing scanning first
@@ -174,8 +146,6 @@ export const useScanLoop = (
       isScanning: true,
       lastFrameTime: performance.now()
     }));
-    
-    console.log('Scanning started, isScanning set to true');
   }, [isReady]);
 
   const stopScanning = useCallback(() => {
@@ -194,14 +164,7 @@ export const useScanLoop = (
   }, []);
 
   useEffect(() => {
-    console.log('ScanLoop useEffect:', { 
-      isScanning: scanState.isScanning, 
-      isReady, 
-      hasAnimationRef: !!animationRef.current 
-    });
-    
     if (scanState.isScanning && isReady && !animationRef.current) {
-      console.log('Starting animation frame loop');
       animationRef.current = requestAnimationFrame(scanLoop);
     }
     
