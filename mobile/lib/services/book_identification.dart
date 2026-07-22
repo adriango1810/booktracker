@@ -27,6 +27,9 @@ typedef HistorySaveCallback = Future<void> Function({
   required String author,
   String? isbn13,
   required String goodreadsUrl,
+  double? ratingAverage,
+  int? ratingsCount,
+  String? ratingSource,
 });
 
 class BookIdentificationService extends ChangeNotifier {
@@ -654,6 +657,9 @@ class BookIdentificationService extends ChangeNotifier {
       author: book.author,
       isbn13: book.isbn13,
       goodreadsUrl: url,
+      ratingAverage: book.ratingAverage,
+      ratingsCount: book.ratingsCount,
+      ratingSource: book.ratingSource,
     );
 
     if (autoOpenGoodreads && confidence >= 0.85 && onLaunchUrl != null) {
@@ -666,19 +672,11 @@ class BookIdentificationService extends ChangeNotifier {
     if (candidate.goodreadsUrl != null) {
       await _applyGoodreadsResult(
         candidate.goodreadsUrl!,
-        Book(
-          title: candidate.title,
-          author: candidate.author,
-          isbn13: candidate.isbn13,
-        ),
+        candidate.toBook(),
         candidate.confidence ?? 0.85,
       );
     } else {
-      await _processResolveGoodreads(Book(
-        title: candidate.title,
-        author: candidate.author,
-        isbn13: candidate.isbn13,
-      ));
+      await _processResolveGoodreads(candidate.toBook());
     }
   }
 

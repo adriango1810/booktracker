@@ -7,6 +7,9 @@ class ScanHistoryEntry {
   final String? isbn13;
   final String goodreadsUrl;
   final int timestampMs;
+  final double? ratingAverage;
+  final int? ratingsCount;
+  final String? ratingSource;
 
   const ScanHistoryEntry({
     required this.title,
@@ -14,6 +17,9 @@ class ScanHistoryEntry {
     this.isbn13,
     required this.goodreadsUrl,
     required this.timestampMs,
+    this.ratingAverage,
+    this.ratingsCount,
+    this.ratingSource,
   });
 
   Map<String, dynamic> toJson() => {
@@ -22,6 +28,9 @@ class ScanHistoryEntry {
         'isbn13': isbn13,
         'goodreadsUrl': goodreadsUrl,
         'timestampMs': timestampMs,
+        'ratingAverage': ratingAverage,
+        'ratingsCount': ratingsCount,
+        'ratingSource': ratingSource,
       };
 
   factory ScanHistoryEntry.fromJson(Map<String, dynamic> json) {
@@ -31,6 +40,31 @@ class ScanHistoryEntry {
       isbn13: json['isbn13'] as String?,
       goodreadsUrl: json['goodreadsUrl'] as String? ?? '',
       timestampMs: json['timestampMs'] as int? ?? 0,
+      ratingAverage: (json['ratingAverage'] as num?)?.toDouble(),
+      ratingsCount: json['ratingsCount'] as int?,
+      ratingSource: json['ratingSource'] as String?,
+    );
+  }
+
+  ScanHistoryEntry copyWith({
+    String? title,
+    String? author,
+    String? isbn13,
+    String? goodreadsUrl,
+    int? timestampMs,
+    double? ratingAverage,
+    int? ratingsCount,
+    String? ratingSource,
+  }) {
+    return ScanHistoryEntry(
+      title: title ?? this.title,
+      author: author ?? this.author,
+      isbn13: isbn13 ?? this.isbn13,
+      goodreadsUrl: goodreadsUrl ?? this.goodreadsUrl,
+      timestampMs: timestampMs ?? this.timestampMs,
+      ratingAverage: ratingAverage ?? this.ratingAverage,
+      ratingsCount: ratingsCount ?? this.ratingsCount,
+      ratingSource: ratingSource ?? this.ratingSource,
     );
   }
 }
@@ -85,6 +119,32 @@ class PreferencesService {
     final history = getHistory();
     history.insert(0, entry);
     final trimmed = history.take(_maxHistory).toList();
+    await _prefs.setString(
+      _historyKey,
+      jsonEncode(trimmed.map((e) => e.toJson()).toList()),
+    );
+  }
+
+  Future<void> removeHistoryEntryAt(int index) async {
+    final history = getHistory();
+    if (index < 0 || index >= history.length) return;
+    history.removeAt(index);
+    if (history.isEmpty) {
+      await _prefs.remove(_historyKey);
+      return;
+    }
+    await _prefs.setString(
+      _historyKey,
+      jsonEncode(history.map((e) => e.toJson()).toList()),
+    );
+  }
+
+  Future<void> replaceHistory(List<ScanHistoryEntry> entries) async {
+    final trimmed = entries.take(_maxHistory).toList();
+    if (trimmed.isEmpty) {
+      await _prefs.remove(_historyKey);
+      return;
+    }
     await _prefs.setString(
       _historyKey,
       jsonEncode(trimmed.map((e) => e.toJson()).toList()),

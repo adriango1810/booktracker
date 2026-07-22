@@ -205,6 +205,9 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     required String author,
     String? isbn13,
     required String goodreadsUrl,
+    double? ratingAverage,
+    int? ratingsCount,
+    String? ratingSource,
   }) async {
     await _preferences?.addHistoryEntry(
       ScanHistoryEntry(
@@ -213,6 +216,9 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         isbn13: isbn13,
         goodreadsUrl: goodreadsUrl,
         timestampMs: DateTime.now().millisecondsSinceEpoch,
+        ratingAverage: ratingAverage,
+        ratingsCount: ratingsCount,
+        ratingSource: ratingSource,
       ),
     );
   }
@@ -560,9 +566,9 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (service.detectedBook != null)
+            if (service.detectedBook != null) ...[
               Text(
-                '${service.detectedBook!.title}\n${service.detectedBook!.author}',
+                service.detectedBook!.title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
@@ -570,6 +576,13 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(height: 4),
+              Text(
+                service.detectedBook!.author,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ],
             if (service.candidates.isNotEmpty) ...[
               const SizedBox(height: 12),
               ...service.candidates.map(
