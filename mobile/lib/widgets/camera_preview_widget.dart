@@ -15,6 +15,24 @@ class CameraPreviewWidget extends StatelessWidget {
       return const ColoredBox(color: Colors.black);
     }
 
-    return CameraPreview(cameraController);
+    // Fill the screen without stretching (BoxFit.cover behaviour).
+    final mediaSize = MediaQuery.sizeOf(context);
+    final previewAspect = cameraController.value.aspectRatio;
+    // In portrait the controller aspect is still sensor-oriented (w/h).
+    var scale = mediaSize.aspectRatio * previewAspect;
+    if (scale < 1) scale = 1 / scale;
+
+    return ClipRect(
+      child: Transform.scale(
+        scale: scale,
+        alignment: Alignment.center,
+        child: Center(
+          child: AspectRatio(
+            aspectRatio: 1 / previewAspect,
+            child: CameraPreview(cameraController),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -21,28 +21,38 @@ enum ScanStatus {
 }
 
 typedef UrlLaunchCallback = Future<void> Function(String url);
+typedef HistorySaveCallback = Future<void> Function({
+  required String title,
+  required String author,
+  String? isbn13,
+  required String goodreadsUrl,
+});
 
 class BookIdentificationService extends ChangeNotifier {
   BookIdentificationService({
     required this.apiClient,
     required this.cameraController,
     required this.locale,
-    this.barcodeFrameSkip = 4,
-    this.ocrIntervalMs = 1000,
+    this.barcodeFrameSkip = 5,
+    this.ocrIntervalMs = 1200,
+    this.ocrDelayMs = 3000,
     this.scanTimeoutMs = 20000,
-    this.ocrMinTextLength = 8,
-    this.autoOpenGoodreads = true,
+    this.ocrMinTextLength = 10,
+    this.autoOpenGoodreads = false,
     this.onLaunchUrl,
-  }) : _barcodeScanner = BarcodeScanner(); // all formats; filter ISBN later
+    this.onSaveHistory,
+  }) : _barcodeScanner = BarcodeScanner();
 
   final BookApi apiClient;
   CameraController? cameraController;
   final String locale;
   final int barcodeFrameSkip;
   final int ocrIntervalMs;
+  final int ocrDelayMs;
   final int scanTimeoutMs;
   final int ocrMinTextLength;
   final UrlLaunchCallback? onLaunchUrl;
+  final HistorySaveCallback? onSaveHistory;
   bool autoOpenGoodreads;
 
   final BarcodeScanner _barcodeScanner;
@@ -54,13 +64,17 @@ class BookIdentificationService extends ChangeNotifier {
   bool _isBarcodeProcessing = false;
   bool _isOcrProcessing = false;
   bool _scanPaused = false;
+  bool _ocrEnabled = false;
+  bool _torchOn = false;
 
   int _frameCount = 0;
   String? _lastStableIsbn;
   int _isbnStableCount = 0;
 
+  Timer? _ocrDelayTimer;
   Timer? _ocrTimer;
   String? _lastOcrText;
+  String? _ocrPreview;
   int _ocrStableCount = 0;
   Uint8List? _latestNv21;
   int _latestWidth = 0;
@@ -88,7 +102,10 @@ class BookIdentificationService extends ChangeNotifier {
   List<BookCandidate> get candidates => _candidates;
   String? get goodreadsUrl => _goodreadsUrl;
   String? get fallbackSearchText => _fallbackSearchText;
+  String? get ocrPreview => _ocrPreview;
   bool get needsConfirmation => _needsConfirmation;
+  bool get torchOn => _torchOn;
+  bool get ocrEnabled => _ocrEnabled;
 
   void setAutoOpenGoodreads(bool value) {
     autoOpenGoodreads = value;
@@ -122,6 +139,7 @@ class BookIdentificationService extends ChangeNotifier {
     _status = ScanStatus.searchingIsbn;
     _statusMessage = 'Buscando código ISBN...';
     _scanPaused = false;
+    _ocrEnabled = false;
     notifyListeners();
 
     try {
@@ -129,18 +147,17 @@ class BookIdentificationService extends ChangeNotifier {
         await cam.startImageStream(_processCameraImage);
       }
     } catch (e) {
-      debugPrint('startImageStream failed: $e');
+      _log('startImageStream failed: $e');
       _status = ScanStatus.failed;
       _statusMessage = 'Error de cámara. Reintenta.';
       notifyListeners();
       return;
     }
 
-    _startOcrTimer();
+    _scheduleOcrEnable();
     _startScanTimeout();
   }
 
-  /// After app resume: attach a fresh controller without wiping detect results.
   Future<void> resumeWithCamera(CameraController controller) async {
     attachCameraController(controller);
     if (!_shouldResumeScanning) {
@@ -153,17 +170,25 @@ class BookIdentificationService extends ChangeNotifier {
       if (!controller.value.isStreamingImages) {
         await controller.startImageStream(_processCameraImage);
       }
-      _startOcrTimer();
+      if (_ocrEnabled) {
+        _startOcrTimer();
+      } else {
+        _scheduleOcrEnable();
+      }
       if (_scanTimeoutTimer == null || !_scanTimeoutTimer!.isActive) {
         _startScanTimeout();
       }
+      if (_torchOn) {
+        await controller.setFlashMode(FlashMode.torch);
+      }
     } catch (e) {
-      debugPrint('resumeWithCamera failed: $e');
+      _log('resumeWithCamera failed: $e');
     }
   }
 
   Future<void> pauseForBackground() async {
     _scanPaused = true;
+    _ocrDelayTimer?.cancel();
     _ocrTimer?.cancel();
     _scanTimeoutTimer?.cancel();
     _latestNv21 = null;
@@ -175,7 +200,7 @@ class BookIdentificationService extends ChangeNotifier {
         await cam.stopImageStream();
       }
     } catch (e) {
-      debugPrint('pause stopImageStream: $e');
+      _log('pause stopImageStream: $e');
     }
   }
 
@@ -194,12 +219,32 @@ class BookIdentificationService extends ChangeNotifier {
     await start();
   }
 
+  /// Clear result and scan next book without leaving the screen.
+  Future<void> nextBook() async {
+    await retry();
+  }
+
+  Future<void> toggleTorch() async {
+    final cam = cameraController;
+    if (cam == null || !cam.value.isInitialized) return;
+    try {
+      _torchOn = !_torchOn;
+      await cam.setFlashMode(_torchOn ? FlashMode.torch : FlashMode.off);
+      notifyListeners();
+    } catch (e) {
+      _log('torch failed: $e');
+      _torchOn = false;
+      notifyListeners();
+    }
+  }
+
   void _resetScanState() {
     _isProcessing = false;
     _detectedBook = null;
     _candidates = [];
     _goodreadsUrl = null;
     _fallbackSearchText = null;
+    _ocrPreview = null;
     _needsConfirmation = false;
     _lastStableIsbn = null;
     _isbnStableCount = 0;
@@ -208,6 +253,23 @@ class BookIdentificationService extends ChangeNotifier {
     _ocrGeneration++;
     _frameCount = 0;
     _latestNv21 = null;
+    _ocrEnabled = false;
+    _ocrDelayTimer?.cancel();
+    _ocrTimer?.cancel();
+  }
+
+  void _scheduleOcrEnable() {
+    _ocrDelayTimer?.cancel();
+    _ocrDelayTimer = Timer(Duration(milliseconds: ocrDelayMs), () {
+      if (!_isActiveScanning || _lastStableIsbn != null || _isProcessing) {
+        return;
+      }
+      _ocrEnabled = true;
+      _status = ScanStatus.readingText;
+      _statusMessage = 'Sin ISBN, leyendo título...';
+      notifyListeners();
+      _startOcrTimer();
+    });
   }
 
   void _processCameraImage(CameraImage image) {
@@ -216,14 +278,15 @@ class BookIdentificationService extends ChangeNotifier {
     _frameCount++;
     final shouldBarcode =
         _frameCount % barcodeFrameSkip == 0 && !_isBarcodeProcessing;
-    final shouldSnapshot = shouldBarcode || !_isOcrProcessing;
+    // Only convert when barcode needs it or OCR is enabled and idle.
+    final shouldSnapshot =
+        shouldBarcode || (_ocrEnabled && !_isOcrProcessing);
 
     if (!shouldSnapshot) return;
 
     final nv21 = CameraInputImage.yuv420ToNv21(image);
     if (nv21 == null) return;
 
-    // Own buffer — CameraImage planes can be recycled by the plugin.
     _latestNv21 = nv21;
     _latestWidth = image.width;
     _latestHeight = image.height;
@@ -232,7 +295,7 @@ class BookIdentificationService extends ChangeNotifier {
     _latestRotation = CameraInputImage.rotationFor(controller: cam);
 
     if (shouldBarcode) {
-      _processBarcode(_latestNv21!, image.width, image.height, _latestRotation);
+      _processBarcode(nv21, image.width, image.height, _latestRotation);
     }
   }
 
@@ -258,9 +321,7 @@ class BookIdentificationService extends ChangeNotifier {
 
       final barcodes = await _barcodeScanner.processImage(inputImage);
       if (barcodes.isNotEmpty) {
-        debugPrint(
-          'Barcode raw: ${barcodes.map((b) => b.rawValue).join(", ")}',
-        );
+        _log('Barcode raw: ${barcodes.map((b) => b.rawValue).join(", ")}');
       }
 
       for (final barcode in barcodes) {
@@ -274,7 +335,7 @@ class BookIdentificationService extends ChangeNotifier {
         }
       }
     } catch (e) {
-      debugPrint('barcode error: $e');
+      _log('barcode error: $e');
     } finally {
       _isBarcodeProcessing = false;
     }
@@ -296,10 +357,15 @@ class BookIdentificationService extends ChangeNotifier {
       return;
     }
 
+    // ISBN wins: cancel pending OCR.
+    _ocrDelayTimer?.cancel();
+    _ocrTimer?.cancel();
+    _ocrEnabled = false;
+    _ocrGeneration++;
+
     if (_lastStableIsbn == isbn) {
       _isbnStableCount++;
       if (_isbnStableCount >= 2) {
-        _ocrGeneration++;
         _lastOcrText = null;
         _ocrStableCount = 0;
         _processIdentifyBook(isbn: isbn);
@@ -325,7 +391,8 @@ class BookIdentificationService extends ChangeNotifier {
 
   Future<void> _processOcr() async {
     final nv21 = _latestNv21;
-    if (_isProcessing ||
+    if (!_ocrEnabled ||
+        _isProcessing ||
         _isOcrProcessing ||
         !_isActiveScanning ||
         _lastStableIsbn != null ||
@@ -340,7 +407,6 @@ class BookIdentificationService extends ChangeNotifier {
     final rotation = _latestRotation;
 
     try {
-      // Prefer full frame first — ROI crop was masking bad conversions.
       final cropped = CameraInputImage.cropNv21Center(nv21, width, height, 0.7);
       final bytes = cropped?.bytes ?? nv21;
       final w = cropped?.width ?? width;
@@ -359,15 +425,16 @@ class BookIdentificationService extends ChangeNotifier {
       final recognizedText = await _textRecognizer.processImage(inputImage);
       if (generation != _ocrGeneration || _isProcessing) return;
 
-      final text = TextNormalization.normalize(recognizedText.text);
-      if (text.isNotEmpty) {
-        debugPrint('OCR: $text');
-      }
-      if (text.length >= ocrMinTextLength) {
-        _handleOcrText(text);
+      final filtered = TextNormalization.extractTitleQuery(
+        recognizedText.text,
+        minLength: ocrMinTextLength,
+      );
+      if (filtered.isNotEmpty) {
+        _log('OCR filtered: $filtered');
+        _handleOcrText(filtered);
       }
     } catch (e) {
-      debugPrint('ocr error: $e');
+      _log('ocr error: $e');
     } finally {
       _isOcrProcessing = false;
     }
@@ -383,6 +450,7 @@ class BookIdentificationService extends ChangeNotifier {
     }
 
     _fallbackSearchText = text;
+    _ocrPreview = text;
 
     if (_lastOcrText != null && TextNormalization.isSimilar(text, _lastOcrText!)) {
       _ocrStableCount++;
@@ -395,7 +463,7 @@ class BookIdentificationService extends ChangeNotifier {
     }
 
     _status = ScanStatus.readingText;
-    final preview = text.length > 40 ? '${text.substring(0, 40)}…' : text;
+    final preview = text.length > 48 ? '${text.substring(0, 48)}…' : text;
     _statusMessage = 'Leyendo: $preview';
     notifyListeners();
   }
@@ -406,6 +474,7 @@ class BookIdentificationService extends ChangeNotifier {
       if (_status == ScanStatus.searchingIsbn ||
           _status == ScanStatus.readingText) {
         _scanPaused = true;
+        _ocrDelayTimer?.cancel();
         _ocrTimer?.cancel();
         _status = ScanStatus.timeout;
         _statusMessage = 'No se pudo identificar';
@@ -419,6 +488,8 @@ class BookIdentificationService extends ChangeNotifier {
 
     _isProcessing = true;
     _ocrGeneration++;
+    _ocrDelayTimer?.cancel();
+    _ocrTimer?.cancel();
     _status = ScanStatus.identifying;
     _statusMessage = 'Buscando libro...';
     _scanTimeoutTimer?.cancel();
@@ -548,6 +619,13 @@ class BookIdentificationService extends ChangeNotifier {
 
     notifyListeners();
 
+    await onSaveHistory?.call(
+      title: book.title,
+      author: book.author,
+      isbn13: book.isbn13,
+      goodreadsUrl: url,
+    );
+
     if (autoOpenGoodreads && confidence >= 0.85 && onLaunchUrl != null) {
       await pauseForBackground();
       await onLaunchUrl!(url);
@@ -578,7 +656,7 @@ class BookIdentificationService extends ChangeNotifier {
     if (_detectedBook == null) return;
 
     if (_goodreadsUrl != null) {
-      if (autoOpenGoodreads && onLaunchUrl != null) {
+      if (onLaunchUrl != null) {
         await onLaunchUrl!(_goodreadsUrl!);
       }
       return;
@@ -601,8 +679,15 @@ class BookIdentificationService extends ChangeNotifier {
     return 'https://www.goodreads.com/search?q=${Uri.encodeComponent(query)}';
   }
 
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
+  }
+
   @override
   void dispose() {
+    _ocrDelayTimer?.cancel();
     _ocrTimer?.cancel();
     _scanTimeoutTimer?.cancel();
     final cam = cameraController;
