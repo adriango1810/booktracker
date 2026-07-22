@@ -1,0 +1,39 @@
+# Root gitignore — Book Scanner monorepo
+
+# Secrets / local env
+**/.env
+!**/.env.example
+backend/.venv/
+backend/**/__pycache__/
+*.pyc
+
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/.flutter-plugins-dependencies
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/.packages
+mobile/**/*.iml
+
+# Android
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/**/captures/
+mobile/android/app/debug/
+mobile/android/app/profile/
+mobile/android/app/release/
+*.apk
+*.aab
+*.keystore
+!debug.keystore
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
