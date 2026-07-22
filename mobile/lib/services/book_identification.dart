@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:ui' show Size;
+import 'dart:ui' show Offset, Size;
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import '../models/book.dart';
 import '../utils/camera_input_image.dart';
+import '../utils/detection_feedback.dart';
 import '../utils/isbn_validation.dart';
 import '../utils/text_normalization.dart';
 import 'book_api.dart';
@@ -66,6 +67,7 @@ class BookIdentificationService extends ChangeNotifier {
   bool _scanPaused = false;
   bool _ocrEnabled = false;
   bool _torchOn = false;
+  bool _detectionLocked = false;
 
   int _frameCount = 0;
   String? _lastStableIsbn;
@@ -106,6 +108,9 @@ class BookIdentificationService extends ChangeNotifier {
   bool get needsConfirmation => _needsConfirmation;
   bool get torchOn => _torchOn;
   bool get ocrEnabled => _ocrEnabled;
+  /// True after a stable ISBN lock (green frame + feedback).
+  bool get detectionLocked =>
+      _detectionLocked || _status == ScanStatus.identifying;
 
   void setAutoOpenGoodreads(bool value) {
     autoOpenGoodreads = value;
@@ -248,6 +253,7 @@ class BookIdentificationService extends ChangeNotifier {
     _needsConfirmation = false;
     _lastStableIsbn = null;
     _isbnStableCount = 0;
+    _detectionLocked = false;
     _lastOcrText = null;
     _ocrStableCount = 0;
     _ocrGeneration++;
@@ -368,7 +374,14 @@ class BookIdentificationService extends ChangeNotifier {
       if (_isbnStableCount >= 2) {
         _lastOcrText = null;
         _ocrStableCount = 0;
+        if (!_detectionLocked) {
+          _detectionLocked = true;
+          _statusMessage = 'ISBN bloqueado: $isbn';
+          notifyListeners();
+          DetectionFeedback.playIsbnLocked();
+        }
         _processIdentifyBook(isbn: isbn);
+        return;
       }
     } else {
       _lastStableIsbn = isbn;
@@ -378,6 +391,23 @@ class BookIdentificationService extends ChangeNotifier {
     _status = ScanStatus.searchingIsbn;
     _statusMessage = 'ISBN detectado: $isbn';
     notifyListeners();
+  }
+
+  /// Tap-to-focus / exposure. [normalized] is 0–1 in preview coordinates.
+  Future<void> focusAt(Offset normalized) async {
+    final cam = cameraController;
+    if (cam == null || !cam.value.isInitialized) return;
+    final x = normalized.dx.clamp(0.0, 1.0);
+    final y = normalized.dy.clamp(0.0, 1.0);
+    final point = Offset(x, y);
+    try {
+      await cam.setFocusMode(FocusMode.auto);
+      await cam.setFocusPoint(point);
+      await cam.setExposurePoint(point);
+      _log('focusAt ($x, $y)');
+    } catch (e) {
+      _log('focusAt failed: $e');
+    }
   }
 
   void _startOcrTimer() {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show PointMode;
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/book_identification.dart';
 import '../services/api_client.dart';
 import '../services/book_api.dart';
+import '../services/direct_book_api.dart';
 import '../services/fallback_api_client.dart';
 import '../services/mock_api_client.dart';
 import '../services/preferences_service.dart';
@@ -234,15 +236,23 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   }
 
   BookApi _createBookApi() {
+    // BOOK_API: direct (default) | mock | remote
+    // USE_MOCK=true still forces mock for demos offline.
     final useMock = dotenv.env['USE_MOCK']?.toLowerCase() == 'true';
+    final mode = (dotenv.env['BOOK_API'] ?? 'direct').toLowerCase().trim();
     final mock = MockApiClient();
-    if (useMock) return mock;
 
-    final remote = ApiClient(
-      baseUrl: dotenv.env['API_BASE_URL'] ?? 'http://192.168.4.68:8000',
-    );
-    // If backend is down, keep scanning usable via mock.
-    return FallbackBookApi(primary: remote, fallback: mock);
+    if (useMock || mode == 'mock') return mock;
+
+    if (mode == 'remote') {
+      final remote = ApiClient(
+        baseUrl: dotenv.env['API_BASE_URL'] ?? 'http://192.168.4.68:8000',
+      );
+      return FallbackBookApi(primary: remote, fallback: DirectBookApi());
+    }
+
+    // Direct Open Library from the phone (Wi‑Fi or mobile data).
+    return DirectBookApi();
   }
 
   void _onAutoOpenChanged() {
@@ -327,8 +337,38 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   }
 }
 
-class _ScanScreenContent extends StatelessWidget {
+class _ScanScreenContent extends StatefulWidget {
   const _ScanScreenContent();
+
+  @override
+  State<_ScanScreenContent> createState() => _ScanScreenContentState();
+}
+
+class _ScanScreenContentState extends State<_ScanScreenContent> {
+  Offset? _focusIndicator;
+  Timer? _focusHideTimer;
+
+  @override
+  void dispose() {
+    _focusHideTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onPreviewTap(
+    TapDownDetails details,
+    BoxConstraints constraints,
+    BookIdentificationService service,
+  ) {
+    final local = details.localPosition;
+    final nx = (local.dx / constraints.maxWidth).clamp(0.0, 1.0);
+    final ny = (local.dy / constraints.maxHeight).clamp(0.0, 1.0);
+    service.focusAt(Offset(nx, ny));
+    setState(() => _focusIndicator = local);
+    _focusHideTimer?.cancel();
+    _focusHideTimer = Timer(const Duration(milliseconds: 900), () {
+      if (mounted) setState(() => _focusIndicator = null);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -353,6 +393,10 @@ class _ScanScreenContent extends StatelessWidget {
   }
 
   Widget _buildOverlay(BuildContext context, BookIdentificationService service) {
+    final frameColor = service.detectionLocked
+        ? const Color(0xFF3DDC84)
+        : Colors.white.withValues(alpha: 0.85);
+
     return Column(
       children: [
         SafeArea(
@@ -376,7 +420,12 @@ class _ScanScreenContent extends StatelessWidget {
                 Expanded(
                   child: Text(
                     service.statusMessage,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    style: TextStyle(
+                      color: service.detectionLocked
+                          ? const Color(0xFF3DDC84)
+                          : Colors.white,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
                 const Text(
@@ -396,7 +445,6 @@ class _ScanScreenContent extends StatelessWidget {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // Portrait book-cover guide: taller than wide (~2:3).
               final maxW = constraints.maxWidth * 0.78;
               final maxH = constraints.maxHeight * 0.78;
               var frameW = maxW;
@@ -405,30 +453,67 @@ class _ScanScreenContent extends StatelessWidget {
                 frameH = maxH;
                 frameW = frameH / 1.45;
               }
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapDown: (d) => _onPreviewTap(d, constraints, service),
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    SizedBox(
-                      width: frameW,
-                      height: frameH,
-                      child: CustomPaint(
-                        painter: _BookFramePainter(
-                          color: Colors.white.withValues(alpha: 0.85),
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            width: frameW,
+                            height: frameH,
+                            child: CustomPaint(
+                              painter: _BookFramePainter(
+                                color: frameColor,
+                                locked: service.detectionLocked,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            service.detectionLocked
+                                ? 'ISBN capturado'
+                                : service.status == ScanStatus.readingText
+                                    ? 'Encaja la portada en el marco'
+                                    : 'Toca para enfocar · ISBN o título',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: service.detectionLocked
+                                  ? const Color(0xFF3DDC84)
+                                  : Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_focusIndicator != null)
+                      Positioned(
+                        left: _focusIndicator!.dx - 28,
+                        top: _focusIndicator!.dy - 28,
+                        child: IgnorePointer(
+                          child: AnimatedOpacity(
+                            opacity: 1,
+                            duration: const Duration(milliseconds: 120),
+                            child: Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.amberAccent,
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      service.status == ScanStatus.readingText
-                          ? 'Encaja la portada en el marco'
-                          : 'ISBN en el lomo o portada · o el título',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
-                      ),
-                    ),
                   ],
                 ),
               );
@@ -566,35 +651,34 @@ class _ScanScreenContent extends StatelessWidget {
 
 /// Corner brackets shaped like a tall book cover (portrait).
 class _BookFramePainter extends CustomPainter {
-  _BookFramePainter({required this.color});
+  _BookFramePainter({required this.color, this.locked = false});
 
   final Color color;
+  final bool locked;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 3
+      ..strokeWidth = locked ? 4 : 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    final corner = size.shortestSide * 0.18;
+    final corner = size.shortestSide * (locked ? 0.22 : 0.18);
     final r = RRect.fromRectAndRadius(
       Offset.zero & size,
       const Radius.circular(10),
     );
     final path = Path()..addRRect(r);
 
-    // Dim hint outline (full frame, subtle).
     canvas.drawPath(
       path,
       Paint()
-        ..color = color.withValues(alpha: 0.25)
-        ..strokeWidth = 1.5
+        ..color = color.withValues(alpha: locked ? 0.45 : 0.25)
+        ..strokeWidth = locked ? 2.5 : 1.5
         ..style = PaintingStyle.stroke,
     );
 
-    // Strong corner brackets.
     final w = size.width;
     final h = size.height;
     final corners = <List<Offset>>[
@@ -610,5 +694,5 @@ class _BookFramePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _BookFramePainter oldDelegate) =>
-      oldDelegate.color != color;
+      oldDelegate.color != color || oldDelegate.locked != locked;
 }
