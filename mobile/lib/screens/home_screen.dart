@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/history_rating_enricher.dart';
 import '../services/preferences_service.dart';
+import '../theme/biblioteka_theme.dart';
 import '../utils/biblioteka_link.dart';
 import '../widgets/book_cover.dart';
+import '../widgets/paper_scaffold.dart';
 import '../widgets/rating_stars.dart';
 import 'history_screen.dart';
 import 'scan_screen.dart';
@@ -33,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _last = prefs.lastEntry;
       _loading = false;
     });
+    BookCoverUrls.prefetch(_last?.isbn13);
     _enrichRatings();
   }
 
@@ -81,9 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
 
-    return Scaffold(
+    return PaperScaffold(
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
@@ -94,25 +97,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          'Book Scanner',
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                        Expanded(
+                          child: Text(
+                            'Book Scanner',
+                            style: text.headlineSmall,
+                          ),
                         ),
-                        const Spacer(),
-                        IconButton(
-                          onPressed: _openHistory,
-                          icon: const Icon(Icons.history),
-                          tooltip: 'Historial',
+                        Material(
+                          color: BkColors.leafTint,
+                          shape: const CircleBorder(),
+                          child: IconButton(
+                            onPressed: _openHistory,
+                            icon: const Icon(Icons.history),
+                            color: BkColors.leaf,
+                            tooltip: 'Historial',
+                          ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'ESCANEA · GUARDA · COMPARTE',
+                      style: text.titleSmall,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Apunta al ISBN o al título y ábrelo en Goodreads o Biblioteka.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                      style: text.bodyMedium?.copyWith(color: BkColors.inkSoft),
                     ),
                     const Spacer(flex: 2),
                     FilledButton(
@@ -135,132 +146,113 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const Spacer(),
                     if (_last != null) ...[
-                      Text(
-                        'Último escaneado',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                      ),
+                      Text('ÚLTIMO ESCANEADO', style: text.titleSmall),
                       const SizedBox(height: 10),
-                      Material(
-                        color: scheme.surfaceContainerHighest.withValues(
-                          alpha: 0.65,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        child: InkWell(
-                          onTap: _openLast,
-                          borderRadius: BorderRadius.circular(16),
-                          child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Row(
-                              children: [
-                                BookCover(
-                                  isbn13: _last!.isbn13,
-                                  width: 64,
-                                  height: 96,
-                                  size: CoverSize.medium,
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _last!.title,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                      SoftCard(
+                        onTap: _openLast,
+                        child: Row(
+                          children: [
+                            BookCover(
+                              isbn13: _last!.isbn13,
+                              width: 64,
+                              height: 96,
+                              size: CoverSize.large,
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _last!.title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: text.titleMedium?.copyWith(
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _last!.author,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(color: BkColors.inkSoft),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  if (_ratingLoading &&
+                                      _last!.ratingAverage == null)
+                                    const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _last!.author,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: scheme.onSurfaceVariant,
-                                        ),
+                                    )
+                                  else
+                                    RatingStars(
+                                      average: _last!.ratingAverage,
+                                      count: _last!.ratingsCount,
+                                      source: _last!.ratingSource,
+                                      compact: true,
+                                    ),
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'Abrir en Goodreads',
+                                    style: TextStyle(
+                                      color: BkColors.leaf,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  if (bibliotekaConfigured) ...[
+                                    const SizedBox(height: 6),
+                                    GestureDetector(
+                                      onTap: () => openInBiblioteka(
+                                        title: _last!.title,
+                                        author: _last!.author,
+                                        isbn13: _last!.isbn13,
                                       ),
-                                      const SizedBox(height: 6),
-                                      if (_ratingLoading &&
-                                          _last!.ratingAverage == null)
-                                        const SizedBox(
-                                          width: 14,
-                                          height: 14,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      else
-                                        RatingStars(
-                                          average: _last!.ratingAverage,
-                                          count: _last!.ratingsCount,
-                                          source: _last!.ratingSource,
-                                          compact: true,
-                                        ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        'Abrir en Goodreads',
+                                      child: const Text(
+                                        'Añadir a Biblioteka',
                                         style: TextStyle(
-                                          color: scheme.primary,
+                                          color: BkColors.leaf,
                                           fontWeight: FontWeight.w500,
                                           fontSize: 13,
                                         ),
                                       ),
-                                      if (bibliotekaConfigured) ...[
-                                        const SizedBox(height: 6),
-                                        GestureDetector(
-                                          onTap: () => openInBiblioteka(
-                                            title: _last!.title,
-                                            author: _last!.author,
-                                            isbn13: _last!.isbn13,
-                                          ),
-                                          child: Text(
-                                            'Añadir a Biblioteka',
-                                            style: TextStyle(
-                                              color: scheme.primary,
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: 13,
-                                            ),
-                                          ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    GestureDetector(
+                                      onTap: () => openRecommendInBiblioteka(
+                                        title: _last!.title,
+                                        author: _last!.author,
+                                        isbn13: _last!.isbn13,
+                                      ),
+                                      child: const Text(
+                                        'Recomendar a',
+                                        style: TextStyle(
+                                          color: BkColors.leaf,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 13,
                                         ),
-                                        const SizedBox(height: 6),
-                                        GestureDetector(
-                                          onTap: () => openRecommendInBiblioteka(
-                                            title: _last!.title,
-                                            author: _last!.author,
-                                            isbn13: _last!.isbn13,
-                                          ),
-                                          child: Text(
-                                            'Recomendar a',
-                                            style: TextStyle(
-                                              color: scheme.primary,
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.open_in_new,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
-                          ),
+                            const Icon(
+                              Icons.open_in_new,
+                              color: BkColors.inkSoft,
+                            ),
+                          ],
                         ),
                       ),
                     ] else
-                      Text(
+                      const Text(
                         'Aún no has escaneado ningún libro.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: scheme.onSurfaceVariant),
+                        style: TextStyle(color: BkColors.inkSoft),
                       ),
                     const SizedBox(height: 16),
                     TextButton(

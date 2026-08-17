@@ -17,6 +17,8 @@ import '../services/mock_api_client.dart';
 import '../services/preferences_service.dart';
 import '../utils/biblioteka_link.dart';
 import '../utils/locale_helper.dart';
+import '../theme/biblioteka_theme.dart';
+import '../widgets/book_cover.dart';
 import '../widgets/camera_preview_widget.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -222,6 +224,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         ratingSource: ratingSource,
       ),
     );
+    BookCoverUrls.prefetch(isbn13);
   }
 
   Future<void> _reinitializeCamera() async {
@@ -401,7 +404,7 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
 
   Widget _buildOverlay(BuildContext context, BookIdentificationService service) {
     final frameColor = service.detectionLocked
-        ? const Color(0xFF3DDC84)
+        ? BkColors.leafSoft
         : Colors.white.withValues(alpha: 0.85);
 
     return Column(
@@ -433,7 +436,7 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: service.detectionLocked
-                          ? const Color(0xFF3DDC84)
+                          ? BkColors.leafSoft
                           : Colors.white,
                       fontSize: 14,
                     ),
@@ -447,8 +450,8 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   value: service.autoOpenGoodreads,
                   onChanged: (value) => service.setAutoOpenGoodreads(value),
-                  activeTrackColor: Colors.blue.shade200,
-                  activeThumbColor: Colors.white,
+                  activeTrackColor: BkColors.leafSoft,
+                  activeThumbColor: BkColors.cream,
                 ),
               ],
             ),
@@ -496,7 +499,7 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: service.detectionLocked
-                                  ? const Color(0xFF3DDC84)
+                                  ? BkColors.leafSoft
                                   : Colors.white70,
                               fontSize: 13,
                             ),
@@ -517,7 +520,7 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
                               height: 56,
                               decoration: BoxDecoration(
                                 border: Border.all(
-                                  color: Colors.amberAccent,
+                                  color: BkColors.accent,
                                   width: 1.5,
                                 ),
                                 borderRadius: BorderRadius.circular(4),
@@ -607,8 +610,8 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
                   child: OutlinedButton(
                     onPressed: () => service.selectCandidate(candidate),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white54),
+                      foregroundColor: BkColors.cream,
+                      side: const BorderSide(color: Color(0x8FF7F3EB)),
                     ),
                     child: Text(
                       '${candidate.title}\n${candidate.author}',
@@ -661,7 +664,10 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: () => service.retry(),
-              style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: BkColors.cream,
+                side: const BorderSide(color: Color(0x8FF7F3EB)),
+              ),
               child: const Text('Reintentar escaneo'),
             ),
           ],
@@ -682,13 +688,16 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
                 final uri = Uri.parse(service.goodreadsSearchUrl());
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+              style: ElevatedButton.styleFrom(backgroundColor: BkColors.clay),
               child: const Text('Buscar en Goodreads'),
             ),
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: () => service.nextBook(),
-              style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: BkColors.cream,
+                side: const BorderSide(color: Color(0x8FF7F3EB)),
+              ),
               child: const Text('Siguiente libro'),
             ),
           ],

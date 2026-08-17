@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/biblioteka_theme.dart';
 
 class RatingStars extends StatelessWidget {
   const RatingStars({
@@ -46,7 +47,7 @@ class RatingStars extends StatelessWidget {
       );
     }
 
-    final color = onDark ? Colors.amberAccent : Colors.amber.shade700;
+    final color = BkColors.accent;
     final label = avg.toStringAsFixed(2);
     final countLabel =
         count != null && count! > 0 ? ' (${_formatCount(count!)})' : '';

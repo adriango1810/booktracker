@@ -1,4 +1,6 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../theme/biblioteka_theme.dart';
 
 /// Open Library cover by ISBN (`covers.openlibrary.org`).
 enum CoverSize { small, medium, large }
@@ -15,7 +17,18 @@ class BookCoverUrls {
       CoverSize.medium => 'M',
       CoverSize.large => 'L',
     };
-    return 'https://covers.openlibrary.org/b/isbn/$digits-$suffix.jpg?default=false';
+    // No `default=false`: a missing cover returns OL's tiny placeholder
+    // immediately instead of a slow 404.
+    return 'https://covers.openlibrary.org/b/isbn/$digits-$suffix.jpg';
+  }
+
+  /// Warm the disk cache so home/history don't wait on Open Library.
+  static void prefetch(String? isbn) {
+    for (final size in const [CoverSize.medium, CoverSize.large]) {
+      final url = forIsbn(isbn, size: size);
+      if (url == null) continue;
+      CachedNetworkImageProvider(url).resolve(ImageConfiguration.empty);
+    }
   }
 }
 
@@ -26,7 +39,7 @@ class BookCover extends StatelessWidget {
     this.width = 56,
     this.height = 84,
     this.borderRadius = 8,
-    this.size = CoverSize.medium,
+    this.size = CoverSize.large,
   });
 
   final String? isbn13;
@@ -47,31 +60,23 @@ class BookCover extends StatelessWidget {
 
     if (url == null) return placeholder;
 
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    // Decode at device pixels; width-only so aspect isn't squashed.
+    final memW = (width * dpr).round();
+
     return ClipRRect(
       borderRadius: radius,
-      child: Image.network(
-        url,
+      child: CachedNetworkImage(
+        imageUrl: url,
         width: width,
         height: height,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => placeholder,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return SizedBox(
-            width: width,
-            height: height,
-            child: ColoredBox(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: const Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            ),
-          );
-        },
+        memCacheWidth: memW,
+        maxWidthDiskCache: 900,
+        fadeInDuration: const Duration(milliseconds: 180),
+        fadeOutDuration: const Duration(milliseconds: 80),
+        placeholder: (_, _) => placeholder,
+        errorWidget: (_, _, _) => placeholder,
       ),
     );
   }
@@ -90,17 +95,20 @@ class _CoverPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [BkColors.leaf, BkColors.clay],
+        ),
         borderRadius: borderRadius,
       ),
       child: Icon(
         Icons.menu_book_rounded,
-        color: scheme.onSurfaceVariant.withValues(alpha: 0.55),
+        color: BkColors.cream.withValues(alpha: 0.75),
         size: width * 0.42,
       ),
     );
