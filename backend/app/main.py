@@ -53,19 +53,20 @@ async def identify_book(body: IdentifyBookRequest) -> IdentifyBookResponse:
 
     if body.ocr_text:
         book, confidence, candidates, reason = await identify_by_ocr(body.ocr_text)
-        if book is None:
-            return IdentifyBookResponse(
-                status="error",
-                confidence=confidence,
-                reason=reason,
-            )
-
         candidate_models = [BookCandidateOut(**c) for c in candidates[:3]]
+
         if candidate_models and confidence < 0.85:
             return IdentifyBookResponse(
                 status="ok",
                 confidence=confidence,
                 candidates=candidate_models,
+                reason=reason,
+            )
+
+        if book is None:
+            return IdentifyBookResponse(
+                status="error",
+                confidence=confidence,
                 reason=reason,
             )
 

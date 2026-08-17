@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/history_rating_enricher.dart';
 import '../services/preferences_service.dart';
+import '../utils/biblioteka_link.dart';
 import '../widgets/book_cover.dart';
 import '../widgets/rating_stars.dart';
 import 'history_screen.dart';
@@ -108,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Apunta al ISBN o al título y abre Goodreads.',
+                      'Apunta al ISBN o al título y ábrelo en Goodreads o Biblioteka.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: scheme.onSurfaceVariant,
                           ),
@@ -209,6 +210,40 @@ class _HomeScreenState extends State<HomeScreen> {
                                           fontSize: 13,
                                         ),
                                       ),
+                                      if (bibliotekaConfigured) ...[
+                                        const SizedBox(height: 6),
+                                        GestureDetector(
+                                          onTap: () => openInBiblioteka(
+                                            title: _last!.title,
+                                            author: _last!.author,
+                                            isbn13: _last!.isbn13,
+                                          ),
+                                          child: Text(
+                                            'Añadir a Biblioteka',
+                                            style: TextStyle(
+                                              color: scheme.primary,
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        GestureDetector(
+                                          onTap: () => openRecommendInBiblioteka(
+                                            title: _last!.title,
+                                            author: _last!.author,
+                                            isbn13: _last!.isbn13,
+                                          ),
+                                          child: Text(
+                                            'Recomendar a',
+                                            style: TextStyle(
+                                              color: scheme.primary,
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),

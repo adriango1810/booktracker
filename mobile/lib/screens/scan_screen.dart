@@ -15,6 +15,7 @@ import '../services/direct_book_api.dart';
 import '../services/fallback_api_client.dart';
 import '../services/mock_api_client.dart';
 import '../services/preferences_service.dart';
+import '../utils/biblioteka_link.dart';
 import '../utils/locale_helper.dart';
 import '../widgets/camera_preview_widget.dart';
 
@@ -411,10 +412,12 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
             child: Row(
               children: [
                 IconButton(
+                  visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.close, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
                 ),
                 IconButton(
+                  visualDensity: VisualDensity.compact,
                   icon: Icon(
                     service.torchOn ? Icons.flash_on : Icons.flash_off,
                     color: Colors.white,
@@ -426,6 +429,8 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
                 Expanded(
                   child: Text(
                     service.statusMessage,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: service.detectionLocked
                           ? const Color(0xFF3DDC84)
@@ -439,6 +444,7 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 Switch(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   value: service.autoOpenGoodreads,
                   onChanged: (value) => service.setAutoOpenGoodreads(value),
                   activeTrackColor: Colors.blue.shade200,
@@ -548,9 +554,15 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
             ),
           ),
         SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: _buildBottomActions(context, service),
+          top: false,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.42,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: _buildBottomActions(context, service),
+            ),
           ),
         ),
       ],
@@ -570,6 +582,8 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
               Text(
                 service.detectedBook!.title,
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -580,6 +594,8 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
               Text(
                 service.detectedBook!.author,
                 textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ],
@@ -597,6 +613,8 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
                     child: Text(
                       '${candidate.title}\n${candidate.author}',
                       textAlign: TextAlign.center,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -613,6 +631,26 @@ class _ScanScreenContentState extends State<_ScanScreenContent> {
               ElevatedButton(
                 onPressed: () => service.openGoodreadsUrl(),
                 child: const Text('Abrir resultado'),
+              ),
+            ],
+            if (service.detectedBook != null && bibliotekaConfigured) ...[
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () => openInBiblioteka(
+                  title: service.detectedBook!.title,
+                  author: service.detectedBook!.author,
+                  isbn13: service.detectedBook!.isbn13,
+                ),
+                child: const Text('Añadir a Biblioteka'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () => openRecommendInBiblioteka(
+                  title: service.detectedBook!.title,
+                  author: service.detectedBook!.author,
+                  isbn13: service.detectedBook!.isbn13,
+                ),
+                child: const Text('Recomendar a'),
               ),
             ],
             const SizedBox(height: 8),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/history_rating_enricher.dart';
 import '../services/preferences_service.dart';
+import '../utils/biblioteka_link.dart';
 import '../widgets/book_cover.dart';
 import '../widgets/rating_stars.dart';
 
@@ -164,10 +165,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ],
                         ),
                         isThreeLine: true,
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          tooltip: 'Eliminar',
-                          onPressed: () => _removeAt(index),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (bibliotekaConfigured) ...[
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(Icons.library_add_outlined),
+                                tooltip: 'Añadir a Biblioteka',
+                                onPressed: () => openInBiblioteka(
+                                  title: e.title,
+                                  author: e.author,
+                                  isbn13: e.isbn13,
+                                ),
+                              ),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(Icons.person_add_alt_1_outlined),
+                                tooltip: 'Recomendar a',
+                                onPressed: () => openRecommendInBiblioteka(
+                                  title: e.title,
+                                  author: e.author,
+                                  isbn13: e.isbn13,
+                                ),
+                              ),
+                            ],
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.delete_outline),
+                              tooltip: 'Eliminar',
+                              onPressed: () => _removeAt(index),
+                            ),
+                          ],
                         ),
                         onTap: () => _open(e.goodreadsUrl),
                       ),

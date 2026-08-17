@@ -52,25 +52,32 @@ class RatingStars extends StatelessWidget {
         count != null && count! > 0 ? ' (${_formatCount(count!)})' : '';
 
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.star_rounded, size: compact ? 16 : 18, color: color),
         const SizedBox(width: 4),
-        Text(
-          '$label$countLabel',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: compact ? 12 : 14,
-            color: strong,
+        Flexible(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '$label$countLabel',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: compact ? 12 : 14,
+                    color: strong,
+                  ),
+                ),
+                if (_sourceLabel.isNotEmpty)
+                  TextSpan(
+                    text: ' $_sourceLabel',
+                    style: TextStyle(fontSize: 11, color: muted),
+                  ),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        if (_sourceLabel.isNotEmpty) ...[
-          const SizedBox(width: 4),
-          Text(
-            _sourceLabel,
-            style: TextStyle(fontSize: 11, color: muted),
-          ),
-        ],
       ],
     );
   }
